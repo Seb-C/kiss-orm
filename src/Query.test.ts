@@ -5,16 +5,23 @@ import CompiledQuery from './CompiledQuery';
 
 describe('Query', async function() {
 	it('constructor', async function() {
-		const query = new Query(['foo', 42]);
-		expect(query.parts).toEqual(['foo', 42]);
+		const query = new Query(['foo', new QueryParam(42)]);
+		expect(query.parts).toEqual(['foo', new QueryParam(42)]);
 	});
 
 	it('createFromTemplateString', async function() {
 		const query = Query.createFromTemplateString(
-			<TemplateStringsArray><any>['foo', 'bar'],
+			<TemplateStringsArray><any>['foo', 'bar', ''],
 			42,
+			new Query(['baz']),
 		);
-		expect(query.parts).toEqual(['foo', new QueryParam(42), 'bar']);
+		expect(query.parts).toEqual([
+			'foo',
+			new QueryParam(42),
+			'bar',
+			new Query(['baz']),
+			'',
+		]);
 	});
 
 	it('compile', async function() {
