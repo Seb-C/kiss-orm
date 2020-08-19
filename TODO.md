@@ -1,3 +1,8 @@
+readme with examples and documentation
+configs (ts, npm..., docker)
+separate repository
+import the right typings: https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/pg/index.d.ts
+
 Basic requests
 try to reduce the boilerplate
 default queries
@@ -18,6 +23,9 @@ replace pg-promise with node-postgres
 merging queries
 refresh?
 soft delete (=> global scoping for the repository)
+test pg-format for identifiers security: https://www.npmjs.com/package/pg-format
+test the remaining classes
+replace any types with a proper list (string|number|Date|null?) also need array and/or object?): https://node-postgres.com/features/queries
 
 constructor(database: Database) {
     super({
