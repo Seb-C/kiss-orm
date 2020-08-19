@@ -33,14 +33,19 @@ export default class Query {
 		let sql = '';
 		const params: any[] = [];
 
-		for (let i = 0; i < this.parts.length; i++) {
-			if (this.parts[i] instanceof QueryParam) {
-				sql += indexToPlaceholder(params.length);
-				params.push((<QueryParam>this.parts[i]).param);
-			} else {
-				sql += this.parts[i];
+		const recursivelyAddParts = (parts: ReadonlyArray<QueryPart>) => {
+			for (let i = 0; i < parts.length; i++) {
+				if (parts[i] instanceof Query) {
+					recursivelyAddParts((<Query>parts[i]).parts);
+				} else if (parts[i] instanceof QueryParam) {
+					sql += indexToPlaceholder(params.length);
+					params.push((<QueryParam>parts[i]).param);
+				} else {
+					sql += parts[i];
+				}
 			}
-		}
+		};
+		recursivelyAddParts(this.parts);
 
 		return new CompiledQuery(sql, params);
 	}
