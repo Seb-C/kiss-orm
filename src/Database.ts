@@ -1,5 +1,5 @@
 import { Client } from 'pg';
-import Query from './Query';
+import Query from './Queries/Query';
 
 export default class Database {
 	public readonly client: Client;

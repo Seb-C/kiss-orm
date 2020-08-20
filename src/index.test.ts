@@ -1,7 +1,7 @@
 import 'jasmine';
 import { sql } from '.';
-import Query from './Query';
-import QueryParam from './QueryParam';
+import Query from './Queries/Query';
+import QueryParam from './Queries/QueryParam';
 
 describe('index', async function() {
 	it('test sql - normal use', async function() {
