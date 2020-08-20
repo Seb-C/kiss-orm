@@ -24,6 +24,21 @@ describe('Query', async function() {
 		]);
 	});
 
+	it('joinComma', async function() {
+		const query = Query.joinComma([
+			new Query(['foo', new QueryParam(42)]),
+			new Query(['bar', new QueryParam(43)]),
+			new Query(['baz', new QueryParam(44)]),
+		]);
+		expect(query.parts).toEqual([
+			new Query(['foo', new QueryParam(42)]),
+			', ',
+			new Query(['bar', new QueryParam(43)]),
+			', ',
+			new Query(['baz', new QueryParam(44)]),
+		]);
+	});
+
 	it('compile - basic use', async function() {
 		const query = new Query(['foo', new QueryParam(42), 'bar']);
 		expect(query.compile(i => '$' + (i + 1), s => s)).toEqual(
