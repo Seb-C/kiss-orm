@@ -1,3 +1,7 @@
+required lib imports:
+    "pg"
+    "@types/pg"
+
 readme with examples and documentation
 configs (ts, npm..., docker)
 separate repository
@@ -23,8 +27,6 @@ replace pg-promise with node-postgres
 merging queries
 refresh?
 soft delete (=> global scoping for the repository)
-order by
 
-implement query identifier formatter in Database https://www.npmjs.com/package/pg-format
-test query identifier formatter in Database
+implement query identifier formatter in Database + test https://www.npmjs.com/package/pg-format
 test the repository

@@ -48,17 +48,18 @@ export default class CrudRepository<Model extends {
 		return new this.model(results[0]);
 	}
 
-	public async select(where: Query): Promise<Model[]> {
+	public async search(where: Query|null = null, orderBy: Query|null = null): Promise<Model[]> {
 		const results = await this.database.query(sql`
 			SELECT *
 			FROM ${new QueryIdentifier(this.table)}
-			WHERE ${where};
+			${where === null ? sql`` : sql`WHERE ${orderBy}`}
+			${orderBy === null ? sql`` : sql`ORDER BY ${orderBy}`}
 		`);
 
 		return results.map(result => new this.model(result));
 	}
 
-	public async insert(attributes: { [key: string]: any }): Promise<Model> {
+	public async create(attributes: { [key: string]: any }): Promise<Model> {
 		const entries = Object.entries(attributes);
 		const fields = entries.map(([key, _]: [string, any]) => sql`${new QueryIdentifier(key)}`);
 		const values = entries.map(([_, val]: [string, any]) => sql`${val}`);
