@@ -1,7 +1,8 @@
+import QueryIdentifier from './QueryIdentifier';
 import QueryParam from './QueryParam';
 import CompiledQuery from './CompiledQuery';
 
-type QueryPart = string|QueryParam|Query;
+type QueryPart = string|QueryIdentifier|QueryParam|Query;
 
 export default class Query {
 	public readonly parts: ReadonlyArray<QueryPart>;
@@ -25,11 +26,27 @@ export default class Query {
 		return new Query(parts);
 	};
 
+	static joinComma (queries: Query[]): Query {
+		const joinedParts: QueryPart[] = [];
+
+		for (let i = 0; i < queries.length; i++) {
+			if (i > 0) {
+				joinedParts.push(', ');
+			}
+			joinedParts.push(queries[i]);
+		}
+
+		return new Query(joinedParts);
+	};
+
 	constructor (parts: ReadonlyArray<QueryPart>) {
 		this.parts = parts;
 	};
 
-	compile(indexToPlaceholder: (i: number) => string): CompiledQuery {
+	compile(
+		indexToPlaceholder: (i: number) => string,
+		formatIdentifier: (s: string)=> string,
+	): CompiledQuery {
 		let sql = '';
 		const params: any[] = [];
 
@@ -40,6 +57,8 @@ export default class Query {
 				} else if (parts[i] instanceof QueryParam) {
 					sql += indexToPlaceholder(params.length);
 					params.push((<QueryParam>parts[i]).param);
+				} else if (parts[i] instanceof QueryIdentifier) {
+					sql += formatIdentifier((<QueryIdentifier>parts[i]).identifier);
 				} else {
 					sql += parts[i];
 				}

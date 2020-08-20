@@ -18,7 +18,10 @@ export default class Database {
 	}
 
 	async query(query: Query): Promise<Array<{ [key: string]: any }>> {
-		const compiledQuery = query.compile(i => '$' + (i + 1));
+		const indexToPlaceholder = (i: number) => '$' + (i + 1);
+		const formatIdentifier = (s: string) => '"' + s + '"';
+
+		const compiledQuery = query.compile(indexToPlaceholder, formatIdentifier);
 		const result = await this.client.query(
 			compiledQuery.sql,
 			<any[]><any>compiledQuery.params,

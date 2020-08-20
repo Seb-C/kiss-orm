@@ -26,7 +26,7 @@ describe('Query', async function() {
 
 	it('compile - basic use', async function() {
 		const query = new Query(['foo', new QueryParam(42), 'bar']);
-		expect(query.compile(i => '$' + (i + 1))).toEqual(
+		expect(query.compile(i => '$' + (i + 1), s => s)).toEqual(
 			new CompiledQuery(
 				'foo$1bar',
 				[42],
@@ -39,7 +39,7 @@ describe('Query', async function() {
 		const subSubQuery = sql`baz${44}`;
 		const subQuery = sql`bar${43}${subSubQuery}`;
 		const query = sql`foo${42}${subQuery}`;
-		expect(query.compile(i => '$' + (i + 1))).toEqual(
+		expect(query.compile(i => '$' + (i + 1), s => s)).toEqual(
 			new CompiledQuery(
 				'foo$1bar$2baz$3',
 				[42, 43, 44],

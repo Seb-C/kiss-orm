@@ -3,5 +3,5 @@ export default class QueryParam {
 
 	constructor (param: any) {
 		this.param = param;
-	};
+	}
 }

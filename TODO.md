@@ -23,30 +23,10 @@ replace pg-promise with node-postgres
 merging queries
 refresh?
 soft delete (=> global scoping for the repository)
-test pg-format for identifiers security: https://www.npmjs.com/package/pg-format
+order by
 
-constructor(database: Database) {
-    super({
-        table: 'User',
-        database,
-    });
-}
-
-public async getBy(column: string, value: any): Promise<User> => new User(
-    await this.db.getOne(sql`
-        SELECT *
-        FROM "${injectSql(this.table)}"
-        WHERE "${injectSql(column)}" = ${value}
-    `)
-);
-
-const roles = ['admin', 'moderator'];
-repo.select(sql`role IN (${roles}) OR id = 1`);
-
-// TODO returning record?
-repo.insert({ ... });
-
-// TODO return new user object?
-repo.update(user: User, { ... });
-
-repo.delete(user: User);
+test Query.join
+test QueryIdentifier usage in Query (+ tests)
+implement query identifier formatter in Database https://www.npmjs.com/package/pg-format
+test query identifier formatter in Database
+test the repository
