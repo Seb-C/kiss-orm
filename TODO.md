@@ -25,7 +25,6 @@ refresh?
 soft delete (=> global scoping for the repository)
 order by
 
-test QueryIdentifier usage in Query (+ tests)
 implement query identifier formatter in Database https://www.npmjs.com/package/pg-format
 test query identifier formatter in Database
 test the repository

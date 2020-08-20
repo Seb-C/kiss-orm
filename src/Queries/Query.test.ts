@@ -1,6 +1,7 @@
 import 'jasmine';
 import Query from './Query';
 import QueryParam from './QueryParam';
+import QueryIdentifier from './QueryIdentifier';
 import CompiledQuery from './CompiledQuery';
 
 describe('Query', async function() {
@@ -58,6 +59,24 @@ describe('Query', async function() {
 			new CompiledQuery(
 				'foo$1bar$2baz$3',
 				[42, 43, 44],
+			),
+		);
+	});
+
+	it('compile - identifiers', async function() {
+		const query = new Query([
+			new QueryIdentifier('foo'),
+			' = ',
+			new QueryParam('bar'),
+		]);
+
+		expect(query.compile(
+			i => '$' + (i + 1),
+			s => '`' + s + '`',
+		)).toEqual(
+			new CompiledQuery(
+				'`foo` = $1',
+				['bar'],
 			),
 		);
 	});
