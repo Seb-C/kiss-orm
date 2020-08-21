@@ -17,7 +17,7 @@ export default class Database {
 		await this.client.end()
 	}
 
-	async query(query: SqlQuery): Promise<Array<{ [key: string]: any }>> {
+	async query(query: SqlQuery): Promise<any[]> {
 		const indexToPlaceholder = (i: number) => '$' + (i + 1);
 		const formatIdentifier = (s: string) => '"' + s + '"';
 

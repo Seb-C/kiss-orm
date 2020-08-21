@@ -14,7 +14,11 @@ export default class SqlQuery {
 		const parts: QueryPart[] = [strings[0]];
 
 		for (let i = 1; i < strings.length; i++) {
-			if (params[i - 1] instanceof SqlQuery) {
+			if (
+				params[i - 1] instanceof SqlQuery
+				|| params[i - 1] instanceof QueryParam
+				|| params[i - 1] instanceof QueryIdentifier
+			) {
 				parts.push(params[i - 1]);
 			} else {
 				parts.push(new QueryParam(params[i - 1]));

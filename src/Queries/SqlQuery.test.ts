@@ -12,15 +12,18 @@ describe('SqlQuery', async function() {
 
 	it('createFromTemplateString', async function() {
 		const query = SqlQuery.createFromTemplateString(
-			<TemplateStringsArray><any>['foo', 'bar', ''],
+			<TemplateStringsArray><any>['foo', 'bar', '', ''],
 			42,
 			new SqlQuery(['baz']),
+			new QueryIdentifier('identifier'),
 		);
 		expect(query.parts).toEqual([
 			'foo',
 			new QueryParam(42),
 			'bar',
 			new SqlQuery(['baz']),
+			'',
+			new QueryIdentifier('identifier'),
 			'',
 		]);
 	});

@@ -27,4 +27,3 @@ refresh?
 soft delete (=> global scoping for the repository)
 
 implement query identifier formatter in Database + test https://www.npmjs.com/package/pg-format
-test the repository
