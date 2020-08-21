@@ -1,4 +1,5 @@
 import { Client } from 'pg';
+import { ident as formatIdentifier } from 'pg-format';
 import SqlQuery from './Queries/SqlQuery';
 
 export default class Database {
@@ -19,7 +20,6 @@ export default class Database {
 
 	async query(query: SqlQuery): Promise<any[]> {
 		const indexToPlaceholder = (i: number) => '$' + (i + 1);
-		const formatIdentifier = (s: string) => '"' + s + '"';
 
 		const compiledQuery = query.compile(indexToPlaceholder, formatIdentifier);
 		const result = await this.client.query(

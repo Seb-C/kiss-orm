@@ -1,6 +1,8 @@
 required lib imports:
     "pg"
+    "pg-format"
     "@types/pg"
+    "@types/pg-format"
 
 readme with examples and documentation
 configs (ts, npm..., docker)
@@ -25,5 +27,3 @@ mappings?
 replace pg-promise with node-postgres
 refresh?
 soft delete (=> global scoping for the repository)
-
-implement query identifier formatter in Database + test https://www.npmjs.com/package/pg-format
