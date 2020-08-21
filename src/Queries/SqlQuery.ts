@@ -2,19 +2,19 @@ import QueryIdentifier from './QueryIdentifier';
 import QueryParam from './QueryParam';
 import CompiledQuery from './CompiledQuery';
 
-type QueryPart = string|QueryIdentifier|QueryParam|Query;
+type QueryPart = string|QueryIdentifier|QueryParam|SqlQuery;
 
-export default class Query {
+export default class SqlQuery {
 	public readonly parts: ReadonlyArray<QueryPart>;
 
 	static createFromTemplateString (
 		strings: TemplateStringsArray,
 		...params: ReadonlyArray<any>
-	): Query {
+	): SqlQuery {
 		const parts: QueryPart[] = [strings[0]];
 
 		for (let i = 1; i < strings.length; i++) {
-			if (params[i - 1] instanceof Query) {
+			if (params[i - 1] instanceof SqlQuery) {
 				parts.push(params[i - 1]);
 			} else {
 				parts.push(new QueryParam(params[i - 1]));
@@ -23,10 +23,10 @@ export default class Query {
 			parts.push(strings[i]);
 		}
 
-		return new Query(parts);
+		return new SqlQuery(parts);
 	};
 
-	static joinComma (queries: Query[]): Query {
+	static joinComma (queries: SqlQuery[]): SqlQuery {
 		const joinedParts: QueryPart[] = [];
 
 		for (let i = 0; i < queries.length; i++) {
@@ -36,7 +36,7 @@ export default class Query {
 			joinedParts.push(queries[i]);
 		}
 
-		return new Query(joinedParts);
+		return new SqlQuery(joinedParts);
 	};
 
 	constructor (parts: ReadonlyArray<QueryPart>) {
@@ -52,8 +52,8 @@ export default class Query {
 
 		const recursivelyAddParts = (parts: ReadonlyArray<QueryPart>) => {
 			for (let i = 0; i < parts.length; i++) {
-				if (parts[i] instanceof Query) {
-					recursivelyAddParts((<Query>parts[i]).parts);
+				if (parts[i] instanceof SqlQuery) {
+					recursivelyAddParts((<SqlQuery>parts[i]).parts);
 				} else if (parts[i] instanceof QueryParam) {
 					sql += indexToPlaceholder(params.length);
 					params.push((<QueryParam>parts[i]).param);

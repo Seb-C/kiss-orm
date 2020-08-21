@@ -1,3 +1,3 @@
-import Query from './Queries/Query';
+import SqlQuery from './Queries/SqlQuery';
 
-export const sql = Query.createFromTemplateString;
+export const sql = SqlQuery.createFromTemplateString;

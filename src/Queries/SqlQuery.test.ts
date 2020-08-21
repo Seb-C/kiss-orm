@@ -1,47 +1,47 @@
 import 'jasmine';
-import Query from './Query';
+import SqlQuery from './SqlQuery';
 import QueryParam from './QueryParam';
 import QueryIdentifier from './QueryIdentifier';
 import CompiledQuery from './CompiledQuery';
 
-describe('Query', async function() {
+describe('SqlQuery', async function() {
 	it('constructor', async function() {
-		const query = new Query(['foo', new QueryParam(42)]);
+		const query = new SqlQuery(['foo', new QueryParam(42)]);
 		expect(query.parts).toEqual(['foo', new QueryParam(42)]);
 	});
 
 	it('createFromTemplateString', async function() {
-		const query = Query.createFromTemplateString(
+		const query = SqlQuery.createFromTemplateString(
 			<TemplateStringsArray><any>['foo', 'bar', ''],
 			42,
-			new Query(['baz']),
+			new SqlQuery(['baz']),
 		);
 		expect(query.parts).toEqual([
 			'foo',
 			new QueryParam(42),
 			'bar',
-			new Query(['baz']),
+			new SqlQuery(['baz']),
 			'',
 		]);
 	});
 
 	it('joinComma', async function() {
-		const query = Query.joinComma([
-			new Query(['foo', new QueryParam(42)]),
-			new Query(['bar', new QueryParam(43)]),
-			new Query(['baz', new QueryParam(44)]),
+		const query = SqlQuery.joinComma([
+			new SqlQuery(['foo', new QueryParam(42)]),
+			new SqlQuery(['bar', new QueryParam(43)]),
+			new SqlQuery(['baz', new QueryParam(44)]),
 		]);
 		expect(query.parts).toEqual([
-			new Query(['foo', new QueryParam(42)]),
+			new SqlQuery(['foo', new QueryParam(42)]),
 			', ',
-			new Query(['bar', new QueryParam(43)]),
+			new SqlQuery(['bar', new QueryParam(43)]),
 			', ',
-			new Query(['baz', new QueryParam(44)]),
+			new SqlQuery(['baz', new QueryParam(44)]),
 		]);
 	});
 
 	it('compile - basic use', async function() {
-		const query = new Query(['foo', new QueryParam(42), 'bar']);
+		const query = new SqlQuery(['foo', new QueryParam(42), 'bar']);
 		expect(query.compile(i => '$' + (i + 1), s => s)).toEqual(
 			new CompiledQuery(
 				'foo$1bar',
@@ -51,7 +51,7 @@ describe('Query', async function() {
 	});
 
 	it('compile - recursively', async function() {
-		const sql = Query.createFromTemplateString;
+		const sql = SqlQuery.createFromTemplateString;
 		const subSubQuery = sql`baz${44}`;
 		const subQuery = sql`bar${43}${subSubQuery}`;
 		const query = sql`foo${42}${subQuery}`;
@@ -64,7 +64,7 @@ describe('Query', async function() {
 	});
 
 	it('compile - identifiers', async function() {
-		const query = new Query([
+		const query = new SqlQuery([
 			new QueryIdentifier('foo'),
 			' = ',
 			new QueryParam('bar'),

@@ -1,5 +1,5 @@
 import { Client } from 'pg';
-import Query from './Queries/Query';
+import SqlQuery from './Queries/SqlQuery';
 
 export default class Database {
 	public readonly client: Client;
@@ -17,7 +17,7 @@ export default class Database {
 		await this.client.end()
 	}
 
-	async query(query: Query): Promise<Array<{ [key: string]: any }>> {
+	async query(query: SqlQuery): Promise<Array<{ [key: string]: any }>> {
 		const indexToPlaceholder = (i: number) => '$' + (i + 1);
 		const formatIdentifier = (s: string) => '"' + s + '"';
 

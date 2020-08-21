@@ -1,7 +1,7 @@
 import NotFoundError from '../Errors/NotFoundError';
 import TooManyResultsError from '../Errors/TooManyResultsError';
 import Database from '../Database';
-import Query from '../Queries/Query';
+import SqlQuery from '../Queries/SqlQuery';
 import QueryIdentifier from '../Queries/QueryIdentifier';
 import { sql } from '..';
 
@@ -48,7 +48,7 @@ export default class CrudRepository<Model extends {
 		return new this.model(results[0]);
 	}
 
-	public async search(where: Query|null = null, orderBy: Query|null = null): Promise<Model[]> {
+	public async search(where: SqlQuery|null = null, orderBy: SqlQuery|null = null): Promise<Model[]> {
 		const results = await this.database.query(sql`
 			SELECT *
 			FROM ${new QueryIdentifier(this.table)}
@@ -65,8 +65,8 @@ export default class CrudRepository<Model extends {
 		const values = entries.map(([_, val]: [string, any]) => sql`${val}`);
 
 		const results = await this.database.query(sql`
-			INSERT INTO ${new QueryIdentifier(this.table)} (${Query.joinComma(fields)})
-			VALUES (${Query.joinComma(values)})
+			INSERT INTO ${new QueryIdentifier(this.table)} (${SqlQuery.joinComma(fields)})
+			VALUES (${SqlQuery.joinComma(values)})
 			RETURNING *;
 		`);
 
@@ -82,7 +82,7 @@ export default class CrudRepository<Model extends {
 
 		const results = await this.database.query(sql`
 			UPDATE ${new QueryIdentifier(this.table)}
-			SET ${Query.joinComma(fieldQueries)}
+			SET ${SqlQuery.joinComma(fieldQueries)}
 			WHERE ${new QueryIdentifier(this.primaryKey)} = ${model[this.primaryKey]}
 			RETURNING *;
 		`);
