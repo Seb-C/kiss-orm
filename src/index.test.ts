@@ -1,5 +1,5 @@
 import 'jasmine';
-import { sql } from '.';
+import { sql, sqlJoin } from '.';
 import SqlQuery from './Queries/SqlQuery';
 import QueryParam from './Queries/QueryParam';
 
@@ -17,6 +17,17 @@ describe('index', async function() {
 			'bar',
 			new SqlQuery(['baz', new QueryParam(43), '']),
 			'',
+		]));
+	});
+	it('test sqlJoin - normal use', async function() {
+		const query = sqlJoin([
+			sql`a = ${'b'}`,
+			sql`c = ${'d'}`,
+		], sql` AND `)
+		expect(query).toEqual(new SqlQuery([
+			new SqlQuery(['a = ', new QueryParam('b'), '']),
+			new SqlQuery([' AND ']),
+			new SqlQuery(['c = ', new QueryParam('d'), '']),
 		]));
 	});
 });

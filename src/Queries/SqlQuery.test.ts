@@ -51,10 +51,9 @@ describe('SqlQuery', async function() {
 	});
 
 	it('compile - recursively', async function() {
-		const sql = SqlQuery.createFromTemplateString;
-		const subSubQuery = sql`baz${44}`;
-		const subQuery = sql`bar${43}${subSubQuery}`;
-		const query = sql`foo${42}${subQuery}`;
+		const subSubQuery = SqlQuery.createFromTemplateString`baz${44}`;
+		const subQuery = SqlQuery.createFromTemplateString`bar${43}${subSubQuery}`;
+		const query = SqlQuery.createFromTemplateString`foo${42}${subQuery}`;
 		expect(query.compile(i => '$' + (i + 1), s => s)).toEqual(
 			new CompiledQuery(
 				'foo$1bar$2baz$3',
