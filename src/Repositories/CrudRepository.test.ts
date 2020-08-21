@@ -30,9 +30,22 @@ class TestRepository extends CrudRepository<TestModel> {
 	}
 }
 
+class TestScopedRepository extends CrudRepository<TestModel> {
+	constructor(database: Database) {
+		super({
+			database,
+			table: 'Test',
+			primaryKey: 'id',
+			model: TestModel,
+			scope: sql`number = 42`,
+		});
+	}
+}
+
 describe('CrudRepository', () => {
 	let db: Database;
 	let repository: TestRepository;
+	let scopedRepository: TestScopedRepository;
 
 	beforeAll(async () => {
 		db = new Database({
@@ -45,6 +58,7 @@ describe('CrudRepository', () => {
 		await db.connect();
 
 		repository = new TestRepository(db);
+		scopedRepository = new TestScopedRepository(db);
 	});
 	afterAll(async () => {
 		await db.disconnect();
@@ -103,6 +117,29 @@ describe('CrudRepository', () => {
 		}
 
 		expect(error).toBeInstanceOf(TooManyResultsError);
+	});
+
+	it('get - scoped case', async () => {
+		await db.query(sql`
+			INSERT INTO "Test" VALUES
+				(1, 'test 1', 42, DATE 'yesterday'),
+				(1, 'test 2', 12, DATE 'tomorrow');
+		`);
+
+		const result = await scopedRepository.get(1);
+		expect(result.text).toEqual('test 1');
+	});
+	it('get - not found in scope case', async () => {
+		await db.query(sql`INSERT INTO "Test" VALUES (1, 'test 2', 12, DATE 'tomorrow');`);
+
+		let error = null;
+		try {
+			await scopedRepository.get(1);
+		} catch (e) {
+			error = e;
+		}
+
+		expect(error).toBeInstanceOf(NotFoundError);
 	});
 
 	it('search - normal case without filters', async () => {
@@ -167,6 +204,31 @@ describe('CrudRepository', () => {
 		expect(results.length).toEqual(2);
 		expect(results[0].id).toEqual(3);
 		expect(results[1].id).toEqual(2);
+	});
+	it('search - scoped', async () => {
+		await db.query(sql`
+			INSERT INTO "Test" VALUES
+				(1, 'test 1', 42, DATE 'yesterday'),
+				(2, 'test 2', 42, DATE 'tomorrow'),
+				(3, 'test 3', 13, DATE 'today');
+		`);
+
+		const results = await scopedRepository.search();
+		expect(results.length).toEqual(2);
+		expect(results[0].id).toEqual(1);
+		expect(results[1].id).toEqual(2);
+	});
+	it('search - scoped and filtered', async () => {
+		await db.query(sql`
+			INSERT INTO "Test" VALUES
+				(1, 'test 1', 42, DATE 'yesterday'),
+				(2, 'test 2', 42, DATE 'tomorrow'),
+				(3, 'test 3', 13, DATE 'today');
+		`);
+
+		const results = await scopedRepository.search(sql`text = 'test 2'`);
+		expect(results.length).toEqual(1);
+		expect(results[0].id).toEqual(2);
 	});
 
 	it('create - normal case', async () => {

@@ -10,29 +10,40 @@ export default class CrudRepository<Model> {
 	protected readonly table: string;
 	protected readonly primaryKey: string;
 	protected readonly model: new (attributes: any) => Model;
+	protected readonly scope: SqlQuery|null;
 
 	constructor({
 		database,
 		table,
 		model,
 		primaryKey,
+		scope = null,
 	}: {
 		database: Database,
 		table: string,
 		primaryKey: string,
 		model: new (attributes: any) => Model,
+		scope?: SqlQuery|null,
 	}) {
 		this.database = database;
 		this.table = table;
 		this.primaryKey = primaryKey;
 		this.model = model;
+		this.scope = scope;
 	}
 
 	public async get(primaryKeyValue: any): Promise<Model> {
+		const filters: SqlQuery[] = [
+			sql`${new QueryIdentifier(this.primaryKey)} = ${primaryKeyValue}`,
+		];
+		if (this.scope !== null) {
+			filters.push(sql`(${this.scope})`);
+		}
+
 		const results = await this.database.query(sql`
 			SELECT *
 			FROM ${new QueryIdentifier(this.table)}
-			WHERE ${new QueryIdentifier(this.primaryKey)} = ${primaryKeyValue};
+			WHERE ${SqlQuery.join(filters, sql` AND `)};
 		`);
 
 		if (results.length === 0) {
@@ -49,11 +60,26 @@ export default class CrudRepository<Model> {
 	}
 
 	public async search(where: SqlQuery|null = null, orderBy: SqlQuery|null = null): Promise<Model[]> {
+		const filters: SqlQuery[] = [];
+		if (this.scope !== null) {
+			filters.push(sql`(${this.scope})`);
+		}
+		if (where !== null) {
+			filters.push(sql`(${where})`);
+		}
+
+		const whereClause = filters.length === 0
+			? sql``
+			: sql`WHERE ${SqlQuery.join(filters, sql` AND `)}`;
+		const orderByClause = orderBy === null
+			? sql``
+			: sql`ORDER BY ${orderBy}`;
+
 		const results = await this.database.query(sql`
 			SELECT *
 			FROM ${new QueryIdentifier(this.table)}
-			${where === null ? sql`` : sql`WHERE ${where}`}
-			${orderBy === null ? sql`` : sql`ORDER BY ${orderBy}`}
+			${whereClause}
+			${orderByClause}
 		`);
 
 		return results.map(result => Object.assign(

@@ -5,25 +5,28 @@ required lib imports:
     "@types/pg-format"
 
 readme with examples and documentation
+explain automatically secured
+examples for "events"
+examples for custom mappings (assumes same name)
+example for soft delete using scope (+ handle delete)
+example for scoping
 configs (ts, npm..., docker)
 separate repository
-import the right typings: https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/pg/index.d.ts
 
 composite primary keys
 try to reduce the boilerplate
+
+db config object typing
 abstraction layer for the id management (for default queries)
+rename db to PostgresDb, add interface and abstraction
+logging
+streaming
+
 migration
-caching?
+caching (= don't create multiple instances of a single row?)?
 relations
 eager loading
 lazy loading
-events
 cascade
 pagination
-streaming
-logging
-schema declaration?
-mappings?
-replace pg-promise with node-postgres
 refresh?
-soft delete (=> global scoping for the repository)
