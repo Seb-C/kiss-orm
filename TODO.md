@@ -7,10 +7,9 @@ configs (ts, npm..., docker)
 separate repository
 import the right typings: https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/pg/index.d.ts
 
-Basic requests
+composite primary keys
 try to reduce the boilerplate
-default queries
-abstraction layer for database
+abstraction layer for the id management (for default queries)
 migration
 caching?
 relations
@@ -24,7 +23,6 @@ logging
 schema declaration?
 mappings?
 replace pg-promise with node-postgres
-merging queries
 refresh?
 soft delete (=> global scoping for the repository)
 

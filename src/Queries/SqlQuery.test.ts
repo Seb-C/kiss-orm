@@ -25,17 +25,17 @@ describe('SqlQuery', async function() {
 		]);
 	});
 
-	it('joinComma', async function() {
-		const query = SqlQuery.joinComma([
+	it('join', async function() {
+		const query = SqlQuery.join([
 			new SqlQuery(['foo', new QueryParam(42)]),
 			new SqlQuery(['bar', new QueryParam(43)]),
 			new SqlQuery(['baz', new QueryParam(44)]),
-		]);
+		], new SqlQuery([', ']));
 		expect(query.parts).toEqual([
 			new SqlQuery(['foo', new QueryParam(42)]),
-			', ',
+			new SqlQuery([', ']),
 			new SqlQuery(['bar', new QueryParam(43)]),
-			', ',
+			new SqlQuery([', ']),
 			new SqlQuery(['baz', new QueryParam(44)]),
 		]);
 	});

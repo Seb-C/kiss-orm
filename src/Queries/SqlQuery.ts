@@ -26,12 +26,12 @@ export default class SqlQuery {
 		return new SqlQuery(parts);
 	};
 
-	static joinComma (queries: SqlQuery[]): SqlQuery {
+	static join (queries: SqlQuery[], delimiter: SqlQuery): SqlQuery {
 		const joinedParts: QueryPart[] = [];
 
 		for (let i = 0; i < queries.length; i++) {
 			if (i > 0) {
-				joinedParts.push(', ');
+				joinedParts.push(delimiter);
 			}
 			joinedParts.push(queries[i]);
 		}

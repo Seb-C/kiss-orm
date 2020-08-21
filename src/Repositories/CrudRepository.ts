@@ -65,8 +65,8 @@ export default class CrudRepository<Model extends {
 		const values = entries.map(([_, val]: [string, any]) => sql`${val}`);
 
 		const results = await this.database.query(sql`
-			INSERT INTO ${new QueryIdentifier(this.table)} (${SqlQuery.joinComma(fields)})
-			VALUES (${SqlQuery.joinComma(values)})
+			INSERT INTO ${new QueryIdentifier(this.table)} (${SqlQuery.join(fields, sql`, `)})
+			VALUES (${SqlQuery.join(values, sql`, `)})
 			RETURNING *;
 		`);
 
@@ -82,7 +82,7 @@ export default class CrudRepository<Model extends {
 
 		const results = await this.database.query(sql`
 			UPDATE ${new QueryIdentifier(this.table)}
-			SET ${SqlQuery.joinComma(fieldQueries)}
+			SET ${SqlQuery.join(fieldQueries, sql`, `)}
 			WHERE ${new QueryIdentifier(this.primaryKey)} = ${model[this.primaryKey]}
 			RETURNING *;
 		`);
