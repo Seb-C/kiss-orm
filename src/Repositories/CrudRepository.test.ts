@@ -56,9 +56,6 @@ describe('CrudRepository', () => {
 			password: 'test'
 		});
 		await db.connect();
-
-		repository = new TestRepository(db);
-		scopedRepository = new TestScopedRepository(db);
 	});
 	afterAll(async () => {
 		await db.disconnect();
@@ -73,6 +70,9 @@ describe('CrudRepository', () => {
 				"date" DATE NOT NULL
 			);
 		`);
+
+		repository = new TestRepository(db);
+		scopedRepository = new TestScopedRepository(db);
 	});
 	afterEach(async () => {
 		await db.query(sql`DROP TABLE "Test";`);
@@ -314,5 +314,19 @@ describe('CrudRepository', () => {
 		});
 
 		await repository.delete(model);
+	});
+
+	it('reuses and updates the same instances', async () => {
+		await db.query(sql`INSERT INTO "Test" VALUES (1, 'test 1', 11, DATE 'yesterday');`);
+
+		const model1 = await repository.get(1);
+		const model2 = (await repository.search(sql`id = 1`))[0];
+		expect(model1).toBe(model2);
+
+		const model3 = await repository.update(model1, { text: 'new text' });
+		expect(model3).toBe(model1);
+
+		expect(model1.text).toEqual('new text');
+		expect(model2.text).toEqual('new text');
 	});
 });

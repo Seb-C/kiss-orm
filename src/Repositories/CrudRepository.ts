@@ -11,6 +11,7 @@ export default class CrudRepository<Model> {
 	protected readonly primaryKey: string;
 	protected readonly model: new (attributes: any) => Model;
 	protected readonly scope: SqlQuery|null;
+	protected readonly modelInstances: Map<any, Model>;
 
 	constructor({
 		database,
@@ -30,6 +31,23 @@ export default class CrudRepository<Model> {
 		this.primaryKey = primaryKey;
 		this.model = model;
 		this.scope = scope;
+		this.modelInstances = new Map();
+	}
+
+	private createModel(attributes: any): Model {
+		let model: Model;
+		if (this.modelInstances.has(attributes[this.primaryKey])) {
+			model = <Model>this.modelInstances.get(attributes[this.primaryKey]);
+		} else {
+			model = Object.create(this.model.prototype);
+			this.modelInstances.set(attributes[this.primaryKey], model);
+		}
+
+		// Assuming the data we received as attributes
+		// of this function is always the most up-to-date
+		Object.assign(model, attributes);
+
+		return model;
 	}
 
 	public async get(primaryKeyValue: any): Promise<Model> {
@@ -53,10 +71,7 @@ export default class CrudRepository<Model> {
 			throw new TooManyResultsError(`Multiple objects found in table ${this.table} for ${this.primaryKey} = ${primaryKeyValue}`);
 		}
 
-		return Object.assign(
-			Object.create(this.model.prototype),
-			results[0],
-		);
+		return this.createModel(results[0]);
 	}
 
 	public async search(where: SqlQuery|null = null, orderBy: SqlQuery|null = null): Promise<Model[]> {
@@ -82,10 +97,7 @@ export default class CrudRepository<Model> {
 			${orderByClause}
 		`);
 
-		return results.map(result => Object.assign(
-			Object.create(this.model.prototype),
-			result,
-		));
+		return results.map(result => this.createModel(result));
 	}
 
 	public async create(attributes: any): Promise<Model> {
@@ -99,10 +111,7 @@ export default class CrudRepository<Model> {
 			RETURNING *;
 		`);
 
-		return Object.assign(
-			Object.create(this.model.prototype),
-			results[0],
-		);
+		return this.createModel(results[0]);
 	}
 
 	public async update(model: Model, attributes: any): Promise<Model> {
@@ -126,10 +135,7 @@ export default class CrudRepository<Model> {
 			throw new TooManyResultsError(`Multiple objects found in table ${this.table} for ${this.primaryKey} = ${(<any>model)[this.primaryKey]}`);
 		}
 
-		return Object.assign(
-			Object.create(this.model.prototype),
-			results[0],
-		);
+		return this.createModel(results[0]);
 	}
 
 	public async delete(model: Model) {
