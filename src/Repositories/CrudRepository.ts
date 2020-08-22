@@ -11,7 +11,6 @@ export default class CrudRepository<Model> {
 	protected readonly primaryKey: string;
 	protected readonly model: new (attributes: any) => Model;
 	protected readonly scope: SqlQuery|null;
-	protected readonly modelInstances: Map<any, Model>;
 
 	constructor({
 		database,
@@ -31,22 +30,11 @@ export default class CrudRepository<Model> {
 		this.primaryKey = primaryKey;
 		this.model = model;
 		this.scope = scope;
-		this.modelInstances = new Map();
 	}
 
 	private createModel(attributes: any): Model {
-		let model: Model;
-		if (this.modelInstances.has(attributes[this.primaryKey])) {
-			model = <Model>this.modelInstances.get(attributes[this.primaryKey]);
-		} else {
-			model = Object.create(this.model.prototype);
-			this.modelInstances.set(attributes[this.primaryKey], model);
-		}
-
-		// Assuming the data we received as attributes
-		// of this function is always the most up-to-date
+		const model = Object.create(this.model.prototype);
 		Object.assign(model, attributes);
-
 		return model;
 	}
 
@@ -74,7 +62,7 @@ export default class CrudRepository<Model> {
 		return this.createModel(results[0]);
 	}
 
-	public async search(where: SqlQuery|null = null, orderBy: SqlQuery|null = null): Promise<Model[]> {
+	public async search(where: SqlQuery|null = null, orderBy: SqlQuery|null = null): Promise<ReadonlyArray<Model>> {
 		const filters: SqlQuery[] = [];
 		if (this.scope !== null) {
 			filters.push(sql`(${this.scope})`);
