@@ -3,6 +3,7 @@ import { ident as formatIdentifier } from 'pg-format';
 import SqlQuery from '../Queries/SqlQuery';
 import CompiledQuery from '../Queries/CompiledQuery';
 import DatabaseInterface from './DatabaseInterface';
+import { sql } from '..';
 
 type LogFunction = (query: CompiledQuery) => void;
 
@@ -38,5 +39,31 @@ export default class PgSqlDatabase implements DatabaseInterface {
 		);
 
 		return result.rows;
+	}
+
+	async migrate(migrations: { [key: string]: SqlQuery }) {
+		await this.query(sql`
+			CREATE TABLE IF NOT EXISTS "Migrations" (
+				"name" TEXT PRIMARY KEY NOT NULL
+			);
+		`);
+
+		const migrationsDone = await this.query(sql`SELECT * FROM "Migrations";`);
+
+		for (const [migrationName, query] of Object.entries(migrations)) {
+			if (migrationsDone.some(migrationDone => migrationDone.name === migrationName)) {
+				continue;
+			}
+
+			await this.query(sql`BEGIN;`);
+			try {
+				await this.query(query);
+				await this.query(sql`INSERT INTO "Migrations" VALUES (${migrationName});`);
+			} catch (error) {
+				await this.query(sql`ROLLBACK;`);
+				throw error;
+			}
+			await this.query(sql`COMMIT;`);
+		}
 	}
 }

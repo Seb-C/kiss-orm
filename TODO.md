@@ -23,8 +23,4 @@ example for scoping
 configs (ts, npm..., docker)
 separate repository
 logging queries (with the log function)
-
-abstraction layer for the id management at insert time (for default queries)
-streaming / paging
-
 migrations
