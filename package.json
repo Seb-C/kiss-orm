@@ -1,6 +1,14 @@
 {
   "name": "kiss-orm",
+  "description": "An extremely simple and explicit ORM for TypeScript",
+  "repository": "github:Seb-C/kiss-orm",
+  "homepage": "https://github.com/Seb-C/kiss-orm",
+  "license": "MIT",
+  "author": "Sébastien Caparros",
   "version": "0.0.0",
+  "engines": {
+    "node": ">= 8.0.0"
+  },
   "devDependencies": {
     "@types/jasmine": "^3.5.13",
     "jasmine": "^3.6.1",
