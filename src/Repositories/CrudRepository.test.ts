@@ -2,7 +2,7 @@ import 'jasmine';
 import NotFoundError from '../Errors/NotFoundError';
 import TooManyResultsError from '../Errors/TooManyResultsError';
 import RelationshipNotFoundError from '../Errors/RelationshipNotFoundError';
-import Database from '../Database';
+import PgSqlDatabase from '../Databases/PgSqlDatabase';
 import { sql } from '..';
 import CrudRepository from './CrudRepository';
 
@@ -36,7 +36,7 @@ class RelatedTestModel {
 }
 
 class TestRepository extends CrudRepository<TestModel> {
-	constructor(database: Database) {
+	constructor(database: PgSqlDatabase) {
 		super({
 			database,
 			table: 'Test',
@@ -61,7 +61,7 @@ class TestRepository extends CrudRepository<TestModel> {
 }
 
 class TestScopedRepository extends CrudRepository<TestModel> {
-	constructor(database: Database) {
+	constructor(database: PgSqlDatabase) {
 		super({
 			database,
 			table: 'Test',
@@ -73,7 +73,7 @@ class TestScopedRepository extends CrudRepository<TestModel> {
 }
 
 class RelatedTestRepository extends CrudRepository<RelatedTestModel> {
-	constructor(database: Database) {
+	constructor(database: PgSqlDatabase) {
 		super({
 			database,
 			table: 'RelatedTest',
@@ -89,13 +89,13 @@ class RelatedTestRepository extends CrudRepository<RelatedTestModel> {
 }
 
 describe('CrudRepository', () => {
-	let db: Database;
+	let db: PgSqlDatabase;
 	let repository: TestRepository;
 	let scopedRepository: TestScopedRepository;
 	let relatedTestRepository: RelatedTestRepository;
 
 	beforeAll(async () => {
-		db = new Database({
+		db = new PgSqlDatabase({
 			host: 'database',
 			port: 5432,
 			database: 'test',

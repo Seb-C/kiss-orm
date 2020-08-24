@@ -1,10 +1,10 @@
 import 'jasmine';
-import Database from './Database';
-import { sql } from '.';
+import PgSqlDatabase from './PgSqlDatabase';
+import { sql } from '..';
 
-describe('Database', async function() {
+describe('PgSqlDatabase', async function() {
 	beforeEach(async function() {
-		this.db = new Database({
+		this.db = new PgSqlDatabase({
 			host: 'database',
 			port: 5432,
 			database: 'test',

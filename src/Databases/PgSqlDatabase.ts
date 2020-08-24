@@ -1,8 +1,9 @@
 import { Client } from 'pg';
 import { ident as formatIdentifier } from 'pg-format';
-import SqlQuery from './Queries/SqlQuery';
+import SqlQuery from '../Queries/SqlQuery';
+import DatabaseInterface from './DatabaseInterface';
 
-export default class Database {
+export default class PgSqlDatabase implements DatabaseInterface {
 	public readonly client: Client;
 
 	// TODO extend config type?

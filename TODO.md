@@ -23,14 +23,8 @@ example for scoping
 configs (ts, npm..., docker)
 separate repository
 
-use non-writable properties for object immutability?
-
-composite primary keys
-try to reduce the boilerplate
-
 db config object typing
-abstraction layer for the id management (for default queries)
-rename db to PostgresDb, add interface and abstraction
+abstraction layer for the id management at insert time (for default queries)
 logging
 streaming / paging
 
