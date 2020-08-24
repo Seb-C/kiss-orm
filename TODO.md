@@ -17,10 +17,13 @@ handles normal and simple uses. Complex and specific cases should be specificall
 examples for "events"
 examples for custom mappings (assumes same name)
 examples for cascade events (via normal functions or normal SQL) + cascade save relationships (do explicitly)?
+example for autoloading relationships
 example for soft delete using scope (+ handle delete)
 example for scoping
 configs (ts, npm..., docker)
 separate repository
+
+use non-writable properties for object immutability?
 
 composite primary keys
 try to reduce the boilerplate
@@ -33,14 +36,5 @@ streaming / paging
 
 migrations
 
-relations = simple methods in the models? Or rather in the repositories (need the database instance)
-
-propertyNameForHasMany: async (): Promise<OtherModel[]> => {
-    return (new OtherRepository(database)).search(sql`relationId = ${model.id}`);
-},
-propertyNameForHasOne: async (model: Model): Promise<OtherModel> => {
-    return (new OtherRepository(database)).get(sql`id = ${model.relationId}`);
-},
-propertyNameForManyMany: async (model: Model): OtherModel[] => {
-    // TODO
-},
+update typescript to remove useless model constructors?
+many/many relations

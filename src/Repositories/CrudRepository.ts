@@ -1,9 +1,13 @@
 import NotFoundError from '../Errors/NotFoundError';
 import TooManyResultsError from '../Errors/TooManyResultsError';
+import RelationshipNotFoundError from '../Errors/RelationshipNotFoundError';
 import Database from '../Database';
 import SqlQuery from '../Queries/SqlQuery';
 import QueryIdentifier from '../Queries/QueryIdentifier';
 import { sql } from '..';
+
+type Relationship<Model> = ((model: Model) => Promise<any>);
+type Relationships<Model> = { [key: string]: Relationship<Model> };
 
 export default class CrudRepository<Model> {
 	protected readonly database: Database;
@@ -11,6 +15,7 @@ export default class CrudRepository<Model> {
 	protected readonly primaryKey: string;
 	protected readonly model: new (attributes: any) => Model;
 	protected readonly scope: SqlQuery|null;
+	protected readonly relationships: Relationships<Model>;
 
 	constructor({
 		database,
@@ -18,24 +23,21 @@ export default class CrudRepository<Model> {
 		model,
 		primaryKey,
 		scope = null,
+		relationships = {},
 	}: {
 		database: Database,
 		table: string,
 		primaryKey: string,
 		model: new (attributes: any) => Model,
 		scope?: SqlQuery|null,
+		relationships?: Relationships<Model>,
 	}) {
 		this.database = database;
 		this.table = table;
 		this.primaryKey = primaryKey;
 		this.model = model;
 		this.scope = scope;
-	}
-
-	private createModel(attributes: any): Model {
-		const model = Object.create(this.model.prototype);
-		Object.assign(model, attributes);
-		return model;
+		this.relationships = relationships;
 	}
 
 	public async get(primaryKeyValue: any): Promise<Model> {
@@ -59,7 +61,7 @@ export default class CrudRepository<Model> {
 			throw new TooManyResultsError(`Multiple objects found in table ${this.table} for ${this.primaryKey} = ${primaryKeyValue}`);
 		}
 
-		return this.createModel(results[0]);
+		return this.createModelFromAttributes(results[0]);
 	}
 
 	public async search(where: SqlQuery|null = null, orderBy: SqlQuery|null = null): Promise<ReadonlyArray<Model>> {
@@ -85,7 +87,11 @@ export default class CrudRepository<Model> {
 			${orderByClause}
 		`);
 
-		return results.map(result => this.createModel(result));
+		return Promise.all(
+			results.map(
+				result => this.createModelFromAttributes(result),
+			),
+		);
 	}
 
 	public async create(attributes: any): Promise<Model> {
@@ -99,7 +105,7 @@ export default class CrudRepository<Model> {
 			RETURNING *;
 		`);
 
-		return this.createModel(results[0]);
+		return this.createModelFromAttributes(results[0]);
 	}
 
 	public async update(model: Model, attributes: any): Promise<Model> {
@@ -123,7 +129,7 @@ export default class CrudRepository<Model> {
 			throw new TooManyResultsError(`Multiple objects found in table ${this.table} for ${this.primaryKey} = ${(<any>model)[this.primaryKey]}`);
 		}
 
-		return this.createModel(results[0]);
+		return this.createModelFromAttributes(results[0]);
 	}
 
 	public async delete(model: Model) {
@@ -131,5 +137,27 @@ export default class CrudRepository<Model> {
 			DELETE FROM ${new QueryIdentifier(this.table)}
 			WHERE ${new QueryIdentifier(this.primaryKey)} = ${(<any>model)[this.primaryKey]};
 		`);
+	}
+
+	private async createModelFromAttributes(attributes: any): Promise<Model> {
+		const model = Object.create(this.model.prototype);
+		Object.assign(model, attributes);
+		return model;
+	}
+
+	public async loadRelationship(model: Model, relationshipName: string): Promise<Model> {
+		if (!this.relationships.hasOwnProperty(relationshipName)) {
+			throw new RelationshipNotFoundError(`The relationship named ${relationshipName} does not exist (table ${this.table}).`);
+		}
+
+		const newModel = await this.createModelFromAttributes(model);
+		const relationshipData = await this.relationships[relationshipName](model);
+		Object.defineProperty(
+			newModel,
+			relationshipName,
+			{ value: relationshipData },
+		);
+
+		return newModel;
 	}
 }
