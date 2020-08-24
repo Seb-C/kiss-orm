@@ -139,7 +139,7 @@ export default class CrudRepository<Model> {
 		`);
 	}
 
-	private async createModelFromAttributes(attributes: any): Promise<Model> {
+	protected async createModelFromAttributes(attributes: any): Promise<Model> {
 		const model = Object.create(this.model.prototype);
 		Object.assign(model, attributes);
 		return model;
