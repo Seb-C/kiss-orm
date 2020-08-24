@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres:12
+    restart: on-failure
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: test
+    volumes:
+      - database:/var/lib/postgresql/data
+  tests:
+    image: node:14-alpine
+    working_dir: /kiss-orm
+    depends_on:
+      - database
+    command: npx ts-node ./node_modules/jasmine/bin/jasmine --config=jasmine.json
+    volumes:
+      - $PWD:/kiss-orm
+volumes:
+  database:

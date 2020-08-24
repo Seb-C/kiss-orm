@@ -1,9 +1,3 @@
-required lib imports:
-    "pg"
-    "pg-format"
-    "@types/pg"
-    "@types/pg-format"
-
 readme with examples and documentation
 explain automatically secured
 eager loading should be handled by yourself (only lazy loading is supported)

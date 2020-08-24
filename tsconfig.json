@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "allowJs": false,
+    "target": "es5",
+    "allowSyntheticDefaultImports": true,
+    "lib": [
+      "es2015",
+      "dom",
+      "dom.iterable"
+    ],
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "alwaysStrict": true,
+    "noUnusedParameters": false,
+    "downlevelIteration": true,
+    "strictFunctionTypes": true,
+    "strictPropertyInitialization": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowUnreachableCode": false,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "preserveWatchOutput":true
+  },
+  "include": [
+    "./src/**/*"
+  ]
+}

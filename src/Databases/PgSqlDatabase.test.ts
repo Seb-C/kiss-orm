@@ -61,9 +61,9 @@ describe('PgSqlDatabase', async function() {
 
 	it('migrations - from scratch', async function() {
 		await db.query(sql`
-			DELETE FROM "Migrations" WHERE "name" LIKE 'test %';
+			DROP TABLE IF EXISTS "Migrations";
+			DROP TABLE IF EXISTS "TestMigration";
 			CREATE TEMPORARY TABLE IF NOT EXISTS "TestMigration" ("text" TEXT NOT NULL);
-			DELETE FROM "TestMigration";
 		`);
 
 		await db.migrate({
@@ -78,11 +78,13 @@ describe('PgSqlDatabase', async function() {
 	});
 	it('migrations - partial update', async function() {
 		await db.query(sql`
-			DELETE FROM "Migrations" WHERE "name" LIKE 'test %';
+			DROP TABLE IF EXISTS "Migrations";
+			DROP TABLE IF EXISTS "TestMigration";
 			CREATE TEMPORARY TABLE IF NOT EXISTS "TestMigration" ("text" TEXT NOT NULL);
-			DELETE FROM "TestMigration";
-			INSERT INTO "Migrations" VALUES ('test 2');
 		`);
+
+		await db.migrate({}); // Creating the Migrations table
+		await db.query(sql`INSERT INTO "Migrations" VALUES ('test 2');`);
 
 		await db.migrate({
 			'test 1': sql`INSERT INTO "TestMigration" VALUES ('test 1');`,
@@ -97,9 +99,13 @@ describe('PgSqlDatabase', async function() {
 	});
 	it('migrations - no update required', async function() {
 		await db.query(sql`
-			DELETE FROM "Migrations" WHERE "name" LIKE 'test %';
+			DROP TABLE IF EXISTS "Migrations";
+			DROP TABLE IF EXISTS "TestMigration";
 			CREATE TEMPORARY TABLE IF NOT EXISTS "TestMigration" ("text" TEXT NOT NULL);
-			DELETE FROM "TestMigration";
+		`);
+
+		await db.migrate({}); // Creating the Migrations table
+		await db.query(sql`
 			INSERT INTO "Migrations" VALUES ('test 1');
 			INSERT INTO "Migrations" VALUES ('test 2');
 		`);
@@ -114,7 +120,8 @@ describe('PgSqlDatabase', async function() {
 	});
 	it('migrations - failing migration script', async function() {
 		await db.query(sql`
-			DELETE FROM "Migrations" WHERE "name" LIKE 'test %';
+			DROP TABLE IF EXISTS "Migrations";
+			DROP TABLE IF EXISTS "TestMigration";
 			CREATE TEMPORARY TABLE IF NOT EXISTS "TestMigration" ("text" TEXT NOT NULL);
 			DELETE FROM "TestMigration";
 		`);
