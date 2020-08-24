@@ -28,5 +28,3 @@ abstraction layer for the id management at insert time (for default queries)
 streaming / paging
 
 migrations
-
-update typescript to remove useless model constructors?

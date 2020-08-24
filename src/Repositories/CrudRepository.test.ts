@@ -7,32 +7,20 @@ import { sql } from '..';
 import CrudRepository from './CrudRepository';
 
 class TestModel {
-	public readonly id: number;
-	public readonly text: string;
-	public readonly number: number;
-	public readonly date: Date;
+	public readonly id!: number;
+	public readonly text!: string;
+	public readonly number!: number;
+	public readonly date!: Date;
 
 	public readonly relatedTests?: RelatedTestModel[];
 	public readonly manyManyRelatedTests?: RelatedTestModel[];
-
-	constructor (attributes: any) {
-		this.id = attributes.id;
-		this.text = attributes.text;
-		this.number = attributes.number;
-		this.date = attributes.date;
-	}
 }
 
 class RelatedTestModel {
-	public readonly id: number;
-	public readonly testId: number;
+	public readonly id!: number;
+	public readonly testId!: number;
 
 	public readonly test?: TestModel;
-
-	constructor (attributes: any) {
-		this.id = attributes.id;
-		this.testId = attributes.testId;
-	}
 }
 
 class TestRepository extends CrudRepository<TestModel> {
@@ -307,7 +295,8 @@ describe('CrudRepository', () => {
 
 	it('update - normal case', async () => {
 		await db.query(sql`INSERT INTO "Test" VALUES (1, 'test 1', 11, DATE 'yesterday');`);
-		const model = new TestModel({
+		const model = new TestModel();
+		Object.assign(model, {
 			id: 1,
 			text: 'test 1',
 			number: 11,
@@ -324,7 +313,8 @@ describe('CrudRepository', () => {
 		expect(result.number).toEqual(11);
 	});
 	it('update - not found case', async () => {
-		const model = new TestModel({
+		const model = new TestModel();
+		Object.assign(model, {
 			id: 1,
 			text: 'test 1',
 			number: 11,
@@ -347,7 +337,8 @@ describe('CrudRepository', () => {
 				(1, 'test 1', 11, DATE 'yesterday');
 		`);
 
-		const model = new TestModel({
+		const model = new TestModel();
+		Object.assign(model, {
 			id: 1,
 			text: 'test 1',
 			number: 11,
@@ -366,7 +357,8 @@ describe('CrudRepository', () => {
 
 	it('delete - normal case', async () => {
 		await db.query(sql`INSERT INTO "Test" VALUES (1, 'test 1', 11, DATE 'yesterday');`);
-		const model = new TestModel({
+		const model = new TestModel();
+		Object.assign(model, {
 			id: 1,
 			text: 'test 1',
 			number: 11,
