@@ -23,7 +23,6 @@ example for scoping
 configs (ts, npm..., docker)
 separate repository
 
-db config object typing
 abstraction layer for the id management at insert time (for default queries)
 logging
 streaming / paging
