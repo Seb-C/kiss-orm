@@ -13,6 +13,7 @@ class TestModel {
 	public readonly date: Date;
 
 	public readonly relatedTests?: RelatedTestModel[];
+	public readonly manyManyRelatedTests?: RelatedTestModel[];
 
 	constructor (attributes: any) {
 		this.id = attributes.id;
@@ -44,6 +45,15 @@ class TestRepository extends CrudRepository<TestModel> {
 			relationships: {
 				relatedTests: (test: TestModel) => (
 					(new RelatedTestRepository(database)).search(sql`"testId" = ${test.id}`)
+				),
+				manyManyRelatedTests: (test: TestModel) => (
+					(new RelatedTestRepository(database)).search(sql`
+						"id" IN (
+							SELECT "relatedTestId"
+							FROM "ManyManyTest"
+							WHERE "testId" = ${test.id}
+						)
+					`)
 				),
 			},
 		});
@@ -111,6 +121,11 @@ describe('CrudRepository', () => {
 				"id" INTEGER NOT NULL,
 				"testId" INTEGER NOT NULL
 			);
+
+			CREATE TEMPORARY TABLE "ManyManyTest" (
+				"testId" INTEGER NOT NULL,
+				"relatedTestId" INTEGER NOT NULL
+			);
 		`);
 
 		repository = new TestRepository(db);
@@ -120,6 +135,7 @@ describe('CrudRepository', () => {
 	afterEach(async () => {
 		await db.query(sql`DROP TABLE "Test";`);
 		await db.query(sql`DROP TABLE "RelatedTest";`);
+		await db.query(sql`DROP TABLE "ManyManyTest";`);
 	});
 
 	it('get - normal case', async () => {
@@ -398,6 +414,36 @@ describe('CrudRepository', () => {
 		expect((<RelatedTestModel[]>newModel.relatedTests)[1]).toBeInstanceOf(RelatedTestModel);
 		expect((<RelatedTestModel[]>newModel.relatedTests)[0].id).toEqual(1);
 		expect((<RelatedTestModel[]>newModel.relatedTests)[1].id).toEqual(2);
+	});
+
+	it('loadRelationship - many many', async () => {
+		await db.query(sql`
+			INSERT INTO "Test" VALUES (1, 'test 1', 11, DATE 'yesterday');
+			INSERT INTO "Test" VALUES (2, 'test 2', 12, DATE 'today');
+
+			INSERT INTO "RelatedTest" VALUES (1, 1);
+			INSERT INTO "RelatedTest" VALUES (2, 1);
+			INSERT INTO "RelatedTest" VALUES (3, 2);
+
+			INSERT INTO "ManyManyTest" VALUES (1, 1);
+			INSERT INTO "ManyManyTest" VALUES (1, 2);
+			INSERT INTO "ManyManyTest" VALUES (2, 1);
+			INSERT INTO "ManyManyTest" VALUES (2, 2);
+			INSERT INTO "ManyManyTest" VALUES (2, 3);
+		`);
+
+		const model = await repository.get(1);
+		expect(model.manyManyRelatedTests).toBeUndefined();
+
+		const newModel = await repository.loadRelationship(model, 'manyManyRelatedTests');
+		expect(model.manyManyRelatedTests).toBeUndefined();
+		expect(newModel.manyManyRelatedTests).not.toBeUndefined();
+		expect(newModel.manyManyRelatedTests).toBeInstanceOf(Array);
+		expect((<RelatedTestModel[]>newModel.manyManyRelatedTests).length).toEqual(2);
+		expect((<RelatedTestModel[]>newModel.manyManyRelatedTests)[0]).toBeInstanceOf(RelatedTestModel);
+		expect((<RelatedTestModel[]>newModel.manyManyRelatedTests)[1]).toBeInstanceOf(RelatedTestModel);
+		expect((<RelatedTestModel[]>newModel.manyManyRelatedTests)[0].id).toEqual(1);
+		expect((<RelatedTestModel[]>newModel.manyManyRelatedTests)[1].id).toEqual(2);
 	});
 
 	it('loadRelationship - not found', async () => {

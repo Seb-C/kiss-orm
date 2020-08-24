@@ -37,4 +37,3 @@ streaming / paging
 migrations
 
 update typescript to remove useless model constructors?
-many/many relations
