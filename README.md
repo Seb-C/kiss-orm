@@ -1,5 +1,22 @@
 # Kiss-ORM
 
+* [Introduction](#introduction)
+* [Compatibility](#compatibility)
+* [Basics](#basics)
+* [Getting started](#getting-started)
+* [Events](#events)
+* [Cascade](#cascade)
+* [Scoping](#scoping)
+* [Soft delete](#soft-delete)
+* [Logging](#logging)
+* [Migrations](#migrations)
+* [Relationships](#relationships)
+    - [one-to-one](#one-to-one)
+    - [one-to-many](#one-to-many)
+    - [many-to-many](#many-to-many)
+* [Eager loading for relationships](#eager-loading-for-relationships)
+* [Autoloading relationships](#autoloading-relationships)
+
 ## Introduction
 
 Kiss-ORM is a new, very opinionated ORM for TypeScript. Here is a description of it's design philosophy:
