@@ -60,14 +60,19 @@ Result:
 }
 ```
 
-## Minimal setup
+## Getting started
+
+Installation:
+```bash
+    npm install kiss-orm --save
+```
 
 ```typescript
 import {
     sql,
     PgSqlDatabase,
     CrudRepository,
-} from '../Databases/PgSqlDatabase';
+} from 'kiss-orm';
 
 class UserModel {
     public readonly id!: number;
