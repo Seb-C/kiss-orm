@@ -5,7 +5,7 @@
   "homepage": "https://github.com/Seb-C/kiss-orm",
   "license": "MIT",
   "author": "Sébastien Caparros",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "engines": {
     "node": ">= 8.0.0"
   },
@@ -20,5 +20,13 @@
     "@types/pg-format": "^1.0.1",
     "pg": "^8.3.2",
     "pg-format": "^1.0.4"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "/dist"
+  ],
+  "scripts": {
+    "prepare": "tsc"
   }
 }

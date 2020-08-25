@@ -1,5 +1,8 @@
 {
   "compilerOptions": {
+    "declaration": true,
+    "declarationDir": "./dist",
+    "outDir": "./dist",
     "allowJs": false,
     "target": "es5",
     "allowSyntheticDefaultImports": true,
@@ -24,5 +27,8 @@
   },
   "include": [
     "./src/**/*"
+  ],
+  "exclude": [
+    "./src/**/*.test.*"
   ]
 }
