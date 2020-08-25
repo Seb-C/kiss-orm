@@ -1,13 +1,15 @@
-export * as DatabaseInterface from './Databases/DatabaseInterface';
-export * as PgSqlDatabase from './Databases/PgSqlDatabase';
+import DatabaseInterface from './Databases/DatabaseInterface';
+import PgSqlDatabase from './Databases/PgSqlDatabase';
+export { DatabaseInterface, PgSqlDatabase };
 
-export * as CompiledQuery from './Queries/CompiledQuery';
-export * as QueryIdentifier from './Queries/QueryIdentifier';
-export * as QueryParam from './Queries/QueryParam';
-export * as SqlQuery from './Queries/SqlQuery';
-
-export * as CrudRepository from './Repositories/CrudRepository';
-
+import CompiledQuery from './Queries/CompiledQuery';
+import QueryIdentifier from './Queries/QueryIdentifier';
+import QueryParam from './Queries/QueryParam';
 import SqlQuery from './Queries/SqlQuery';
+export { CompiledQuery, QueryIdentifier, QueryParam, SqlQuery };
+
+import CrudRepository from './Repositories/CrudRepository';
+export { CrudRepository };
+
 export const sql = SqlQuery.createFromTemplateString;
 export const sqlJoin = SqlQuery.join;
