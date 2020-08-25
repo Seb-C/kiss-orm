@@ -1,7 +1,7 @@
 import NotFoundError from '../Errors/NotFoundError';
 import TooManyResultsError from '../Errors/TooManyResultsError';
 import RelationshipNotFoundError from '../Errors/RelationshipNotFoundError';
-import PgSqlDatabase from '../Databases/PgSqlDatabase';
+import DatabaseInterface from '../Databases/DatabaseInterface';
 import SqlQuery from '../Queries/SqlQuery';
 import QueryIdentifier from '../Queries/QueryIdentifier';
 import { sql } from '..';
@@ -10,7 +10,7 @@ type Relationship<Model> = ((model: Model) => Promise<any>);
 type Relationships<Model> = { [key: string]: Relationship<Model> };
 
 export default class CrudRepository<Model> {
-	protected readonly database: PgSqlDatabase;
+	protected readonly database: DatabaseInterface;
 	protected readonly table: string;
 	protected readonly primaryKey: string;
 	protected readonly model: new (attributes: any) => Model;
@@ -25,7 +25,7 @@ export default class CrudRepository<Model> {
 		scope = null,
 		relationships = {},
 	}: {
-		database: PgSqlDatabase,
+		database: DatabaseInterface,
 		table: string,
 		primaryKey: string,
 		model: new (attributes: any) => Model,
