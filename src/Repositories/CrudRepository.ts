@@ -9,11 +9,11 @@ import { sql } from '..';
 type Relationship<Model> = ((model: Model) => Promise<any>);
 type Relationships<Model> = { [key: string]: Relationship<Model> };
 
-export default class CrudRepository<Model> {
+export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType = any> {
 	protected readonly database: DatabaseInterface;
 	protected readonly table: string;
 	protected readonly primaryKey: string;
-	protected readonly model: new (attributes: any) => Model;
+	protected readonly model: new (attributes: Required<ValidAttributes>) => Model;
 	protected readonly scope: SqlQuery|null;
 	protected readonly relationships: Relationships<Model>;
 
@@ -28,7 +28,7 @@ export default class CrudRepository<Model> {
 		database: DatabaseInterface,
 		table: string,
 		primaryKey: string,
-		model: new (attributes: any) => Model,
+		model: new (attributes: Required<ValidAttributes>) => Model,
 		scope?: SqlQuery|null,
 		relationships?: Relationships<Model>,
 	}) {
@@ -40,7 +40,7 @@ export default class CrudRepository<Model> {
 		this.relationships = relationships;
 	}
 
-	public async get(primaryKeyValue: any): Promise<Model> {
+	public async get(primaryKeyValue: PrimaryKeyType): Promise<Model> {
 		const filters: SqlQuery[] = [
 			sql`${new QueryIdentifier(this.primaryKey)} = ${primaryKeyValue}`,
 		];
@@ -94,7 +94,7 @@ export default class CrudRepository<Model> {
 		);
 	}
 
-	public async create(attributes: any): Promise<Model> {
+	public async create(attributes: Required<ValidAttributes>): Promise<Model> {
 		const entries = Object.entries(attributes);
 		const fields = entries.map(([key, _]: [string, any]) => sql`${new QueryIdentifier(key)}`);
 		const values = entries.map(([_, val]: [string, any]) => sql`${val}`);
@@ -108,7 +108,7 @@ export default class CrudRepository<Model> {
 		return this.createModelFromAttributes(results[0]);
 	}
 
-	public async update(model: Model, attributes: any): Promise<Model> {
+	public async update(model: Model, attributes: Partial<ValidAttributes>): Promise<Model> {
 		const fieldQueries = Object.entries(attributes).map(
 			([key, value]: [string, any]) => (
 				sql`${new QueryIdentifier(key)} = ${value}`
@@ -139,7 +139,7 @@ export default class CrudRepository<Model> {
 		`);
 	}
 
-	protected async createModelFromAttributes(attributes: any): Promise<Model> {
+	protected async createModelFromAttributes(attributes: Required<ValidAttributes>|Model): Promise<Model> {
 		const model = Object.create(this.model.prototype);
 		Object.assign(model, attributes);
 		return model;

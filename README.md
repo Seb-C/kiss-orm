@@ -16,6 +16,7 @@
     - [many-to-many](#many-to-many)
 * [Eager loading for relationships](#eager-loading-for-relationships)
 * [Autoloading relationships](#autoloading-relationships)
+* [Advanced typings](#advanced typings)
 
 ## Introduction
 
@@ -388,5 +389,20 @@ class UserRepository extends CrudRepository<UserModel> {
         await this.loadRelationship(user, 'articles');
         return user;
     }
+}
+```
+
+## Advanced typings
+
+By default, the type of the primary key (for the `get` method) and the parameters
+of the `create` and `update` methods is `any`. But you can specify it:
+
+```typescript
+class UserRepository extends CrudRepository<
+    UserModel, // Object returned by the methods
+    { id: number, email: string, isBlocked: boolean },
+    number, // Type of the primary key (id)
+> {
+    // [...]
 }
 ```
