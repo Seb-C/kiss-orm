@@ -8,6 +8,11 @@ import QueryParam from './Queries/QueryParam';
 import SqlQuery from './Queries/SqlQuery';
 export { CompiledQuery, QueryIdentifier, QueryParam, SqlQuery };
 
+import NotFoundError from './Errors/NotFoundError';
+import RelationshipNotFoundError from './Errors/RelationshipNotFoundError';
+import TooManyResultsError from './Errors/TooManyResultsError';
+export { NotFoundError, RelationshipNotFoundError, TooManyResultsError };
+
 import CrudRepository from './Repositories/CrudRepository';
 export { CrudRepository };
 
