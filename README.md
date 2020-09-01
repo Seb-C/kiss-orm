@@ -395,14 +395,41 @@ class UserRepository extends CrudRepository<UserModel> {
 ## Advanced typings
 
 By default, the type of the primary key (for the `get` method) and the parameters
-of the `create` and `update` methods is `any`. But you can specify it:
+of the `create` and `update` methods is `any`, but you can specify it.
+
+When you are using a `serial` / `auto-increment` id, you should not specify the id in the properties list.
 
 ```typescript
 class UserRepository extends CrudRepository<
     UserModel, // Object returned by the methods
-    { id: number, email: string, isBlocked: boolean },
+    { email: string, isBlocked: boolean },
     number, // Type of the primary key (id)
 > {
     // [...]
+}
+```
+
+Handling uuids or automatically filled columns is a bit more tricky, but possible:
+
+```typescript
+type UserParams = {
+    uuid: SqlQuery,
+    email: string,
+    // [...]
+    createdAt: Date,
+};
+
+type AllowedUserParams = Omit<UserParams, 'id' | 'createdAt'>;
+
+export default class User extends CrudRepository<UserModel, UserParams, string> {
+    // [...]
+
+    async create (attributes: AllowedUserParams): Promise<UserModel> {
+        return super.create({
+            ...attributes,
+            uuid: sql`gen_random_uuid()`,
+            createdAt: new Date(),
+        });
+    }
 }
 ```
