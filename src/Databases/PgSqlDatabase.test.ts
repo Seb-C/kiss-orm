@@ -126,17 +126,12 @@ describe('PgSqlDatabase', async function() {
 			DELETE FROM "TestMigration";
 		`);
 
-		let error = null;
-		try {
-			await db.migrate({
+		await expectAsync(
+			db.migrate({
 				'test 1': sql`BAD QUERY THAT FAILS;`,
 				'test 2': sql`INSERT INTO "TestMigration" VALUES ('test 1');`,
-			});
-		} catch (e) {
-			error = e;
-		}
-
-		expect(error).not.toBeNull();
+			})
+		).toBeRejected();
 
 		const migrations = await db.query(sql`SELECT * FROM "Migrations" WHERE "name" LIKE 'test %';`);
 		expect(migrations.length).toBe(0);

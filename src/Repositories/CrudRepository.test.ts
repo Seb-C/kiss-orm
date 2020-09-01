@@ -141,14 +141,7 @@ describe('CrudRepository', () => {
 		expect(result.date).toBeInstanceOf(Date);
 	});
 	it('get - not found case', async () => {
-		let error = null;
-		try {
-			await repository.get(1);
-		} catch (e) {
-			error = e;
-		}
-
-		expect(error).toBeInstanceOf(NotFoundError);
+		await expectAsync(repository.get(1)).toBeRejectedWithError(NotFoundError);
 	});
 	it('get - too many results case', async () => {
 		await db.query(sql`
@@ -157,14 +150,7 @@ describe('CrudRepository', () => {
 				(1, 'test 1', 11, DATE 'yesterday');
 		`);
 
-		let error = null;
-		try {
-			await repository.get(1);
-		} catch (e) {
-			error = e;
-		}
-
-		expect(error).toBeInstanceOf(TooManyResultsError);
+		await expectAsync(repository.get(1)).toBeRejectedWithError(TooManyResultsError);
 	});
 
 	it('get - scoped case', async () => {
@@ -180,14 +166,7 @@ describe('CrudRepository', () => {
 	it('get - not found in scope case', async () => {
 		await db.query(sql`INSERT INTO "Test" VALUES (1, 'test 2', 12, DATE 'tomorrow');`);
 
-		let error = null;
-		try {
-			await scopedRepository.get(1);
-		} catch (e) {
-			error = e;
-		}
-
-		expect(error).toBeInstanceOf(NotFoundError);
+		await expectAsync(scopedRepository.get(1)).toBeRejectedWithError(NotFoundError);
 	});
 
 	it('search - normal case without filters', async () => {
@@ -321,14 +300,9 @@ describe('CrudRepository', () => {
 			date: new Date(),
 		});
 
-		let error = null;
-		try {
-			await repository.update(model, { text: 'test 2' });
-		} catch (e) {
-			error = e;
-		}
-
-		expect(error).toBeInstanceOf(NotFoundError);
+		await expectAsync(
+			repository.update(model, { text: 'test 2' })
+		).toBeRejectedWithError(NotFoundError);
 	});
 	it('update - too many results case', async () => {
 		await db.query(sql`
@@ -345,14 +319,9 @@ describe('CrudRepository', () => {
 			date: new Date(),
 		});
 
-		let error = null;
-		try {
-			await repository.update(model, { text: 'test 2' })
-		} catch (e) {
-			error = e;
-		}
-
-		expect(error).toBeInstanceOf(TooManyResultsError);
+		await expectAsync(
+			repository.update(model, { text: 'test 2' })
+		).toBeRejectedWithError(TooManyResultsError);
 	});
 
 	it('delete - normal case', async () => {
@@ -443,13 +412,8 @@ describe('CrudRepository', () => {
 
 		const model = await relatedTestRepository.get(1);
 
-		let error = null;
-		try {
-			await relatedTestRepository.loadRelationship(model, 'wrong_relationship');
-		} catch (e) {
-			error = e;
-		}
-
-		expect(error).toBeInstanceOf(RelationshipNotFoundError);
+		await expectAsync(
+			relatedTestRepository.loadRelationship(model, 'wrong_relationship')
+		).toBeRejectedWithError(RelationshipNotFoundError);
 	});
 });
