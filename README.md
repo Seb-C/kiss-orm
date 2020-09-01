@@ -16,7 +16,7 @@
     - [many-to-many](#many-to-many)
 * [Eager loading for relationships](#eager-loading-for-relationships)
 * [Autoloading relationships](#autoloading-relationships)
-* [Advanced typings](#advanced typings)
+* [Advanced typings](#advanced-typings)
 
 ## Introduction
 
