@@ -57,7 +57,7 @@ Did you notice the `sql` tag? This internally transforms the query safely into s
 
 ```
 {
-    query: 'SELECT * FROM "Users" WHERE "email" = $1 AND "password" = $2',
+    query: 'SELECT * FROM "Users" WHERE "email" = $1 AND "password" = CRYPT($2)',
     params: ['bob@example.com', '123456'],
 }
 ```
@@ -120,7 +120,7 @@ const repository = new UserRepository(db);
 
 const user = await repository.get(2);
 const blockedUsers: User[] = await repository.search(
-    sql`"isBlocked" = TRUE OR "email" LIKE ${'%@' + bannedDomain}`,
+    sql`"isBlocked" OR "email" LIKE ${'%@' + bannedDomain}`,
     sql`"email" ASC`,
 );
 
@@ -196,7 +196,7 @@ class UsersRepository extends CrudRepository<UserModel> {
     constructor(database: PgSqlDatabase) {
         super({
             // [...]
-            scope: sql`"deletedFlag" = FALSE`,
+            scope: sql`NOT("deletedFlag")`,
         });
     }
 }
