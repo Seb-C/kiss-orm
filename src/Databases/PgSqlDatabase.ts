@@ -8,19 +8,33 @@ import { sql } from '..';
 type LogFunction = (query: CompiledQuery) => void;
 
 export default class PgSqlDatabase implements DatabaseInterface {
+	private readonly config: ClientConfig;
+	private readonly logFunction: LogFunction;
 	public readonly client: Client;
-	public readonly logFunction: LogFunction;
 
 	constructor(
 		config: ClientConfig,
 		logFunction: LogFunction = (query) => {},
 	) {
-		this.client = new Client(config);
+		this.config = config;
 		this.logFunction = logFunction;
+		this.client = new Client(this.config);
 	}
 
-	async connect() {
-		await this.client.connect()
+	async connect(autoReconnect: boolean = true) {
+		await this.client.connect();
+
+		if (autoReconnect) {
+			this.client.on('error', (err) => {
+				console.error('Database connection lost. Attempting to reconnect...');
+				console.error(err);
+
+				(<any>this.client) = new Client(this.config);
+				this.client.connect()
+					.then(console.log)
+					.catch(console.error);
+			});
+		}
 	}
 
 	async disconnect() {
