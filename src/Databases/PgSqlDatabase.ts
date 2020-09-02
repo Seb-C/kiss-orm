@@ -10,7 +10,7 @@ type LogFunction = (query: CompiledQuery) => void;
 export default class PgSqlDatabase implements DatabaseInterface {
 	private readonly config: ClientConfig;
 	private readonly logFunction: LogFunction;
-	public readonly client: Client;
+	public client!: Client;
 
 	constructor(
 		config: ClientConfig,
@@ -18,21 +18,26 @@ export default class PgSqlDatabase implements DatabaseInterface {
 	) {
 		this.config = config;
 		this.logFunction = logFunction;
-		this.client = new Client(this.config);
 	}
 
-	async connect(autoReconnect: boolean = true) {
+	async connect(autoReconnectDelay: number|null = null) {
+		this.client = new Client(this.config);
 		await this.client.connect();
 
-		if (autoReconnect) {
+		if (autoReconnectDelay !== null) {
 			this.client.on('error', (err) => {
-				console.error('Database connection lost. Attempting to reconnect...');
 				console.error(err);
 
-				(<any>this.client) = new Client(this.config);
-				this.client.connect()
-					.then(console.log)
-					.catch(console.error);
+				const tryToReconnect = async () => {
+					try {
+						await this.connect(autoReconnectDelay);
+					} catch (error) {
+						console.error(error);
+						setTimeout(tryToReconnect, autoReconnectDelay);
+					}
+				};
+
+				setTimeout(tryToReconnect, autoReconnectDelay);
 			});
 		}
 	}
