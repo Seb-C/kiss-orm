@@ -22,10 +22,6 @@ export default class PgSqlDatabase implements DatabaseInterface {
 		this.pool = new Pool(this.config);
 	}
 
-	async connect() {
-		// Nothing to do, it is handled by the pool
-	}
-
 	async disconnect() {
 		await this.pool.end();
 	}

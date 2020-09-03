@@ -115,7 +115,6 @@ const db = new PgSqlDatabase({
     // https://node-postgres.com/api/client#new-clientconfig-object
     // https://node-postgres.com/api/pool#new-poolconfig-object
 });
-await db.connect();
 
 const repository = new UserRepository(db);
 

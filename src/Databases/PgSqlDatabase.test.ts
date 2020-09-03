@@ -16,8 +16,6 @@ describe('PgSqlDatabase', async function() {
 			user: 'test',
 			password: 'test',
 		}, query => this.loggedQueries.push(query));
-
-		await db.connect();
 	});
 
 	afterEach(async function() {
