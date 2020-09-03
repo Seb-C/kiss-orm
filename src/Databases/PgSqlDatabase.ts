@@ -62,20 +62,22 @@ export default class PgSqlDatabase implements DatabaseInterface {
 
 		const migrationsDone = await this.query(sql`SELECT * FROM "Migrations";`);
 
-		for (const [migrationName, query] of Object.entries(migrations)) {
+		for (const [migrationName, migrationQuery] of Object.entries(migrations)) {
 			if (migrationsDone.some(migrationDone => migrationDone.name === migrationName)) {
 				continue;
 			}
 
-			await this.query(sql`BEGIN;`);
-			try {
-				await this.query(query);
-				await this.query(sql`INSERT INTO "Migrations" VALUES (${migrationName});`);
-			} catch (error) {
-				await this.query(sql`ROLLBACK;`);
-				throw error;
-			}
-			await this.query(sql`COMMIT;`);
+			await this.sequence(async query => {
+				await query(sql`BEGIN;`);
+				try {
+					await query(migrationQuery);
+					await query(sql`INSERT INTO "Migrations" VALUES (${migrationName});`);
+				} catch (error) {
+					await query(sql`ROLLBACK;`);
+					throw error;
+				}
+				await query(sql`COMMIT;`);
+			});
 		}
 	}
 }
