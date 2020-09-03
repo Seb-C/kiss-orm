@@ -1,5 +1,4 @@
 import 'jasmine';
-import CompiledQuery from '../Queries/CompiledQuery';
 import PgSqlDatabase from './PgSqlDatabase';
 import { sql } from '..';
 
@@ -7,19 +6,23 @@ describe('PgSqlDatabase', async function() {
 	let db: PgSqlDatabase;
 
 	beforeEach(async function() {
-		this.loggedQueries = <CompiledQuery[]>[];
-
 		db = new PgSqlDatabase({
 			host: 'database',
 			port: 5432,
 			database: 'test',
 			user: 'test',
 			password: 'test',
-		}, query => this.loggedQueries.push(query));
+		});
 	});
 
 	afterEach(async function() {
 		await db.disconnect();
+	});
+
+	it('indexToPlaceholder', async function() {
+		expect(db.indexToPlaceholder(0)).toBe('$1');
+		expect(db.indexToPlaceholder(1)).toBe('$2');
+		expect(db.indexToPlaceholder(2)).toBe('$3');
 	});
 
 	it('query with results', async function() {
@@ -41,20 +44,6 @@ describe('PgSqlDatabase', async function() {
 		`);
 
 		expect(result.length).toBe(0);
-	});
-
-	it('logging queries', async function() {
-		await db.query(sql`SELECT 1`);
-		await db.query(sql`SELECT ${2}`);
-
-		expect(this.loggedQueries.length).toBe(2);
-		expect(this.loggedQueries[0]).toBeInstanceOf(CompiledQuery);
-		expect(this.loggedQueries[0].sql).toEqual('SELECT 1');
-		expect(this.loggedQueries[0].params).toEqual([]);
-
-		expect(this.loggedQueries[1]).toBeInstanceOf(CompiledQuery);
-		expect(this.loggedQueries[1].sql).toEqual('SELECT $1');
-		expect(this.loggedQueries[1].params).toEqual([2]);
 	});
 
 	it('migrations - from scratch', async function() {
