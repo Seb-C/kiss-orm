@@ -90,7 +90,6 @@ describe('CrudRepository', () => {
 			user: 'test',
 			password: 'test'
 		});
-		await db.connect();
 	});
 	afterAll(async () => {
 		await db.disconnect();
