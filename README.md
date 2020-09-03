@@ -116,6 +116,8 @@ const db = new PgSqlDatabase({
     // https://node-postgres.com/api/pool#new-poolconfig-object
 });
 
+// Note: You can alternatively inject a Pool object to the `PgSqlDatabase` constructor if you need.
+
 const repository = new UserRepository(db);
 
 const user = await repository.get(2);

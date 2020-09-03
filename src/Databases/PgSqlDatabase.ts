@@ -9,17 +9,19 @@ import { sql } from '..';
 type LogFunction = (query: CompiledQuery) => void;
 
 export default class PgSqlDatabase implements DatabaseInterface {
-	public readonly config: PoolConfig;
-	public readonly logFunction: LogFunction;
+	private readonly logFunction: LogFunction;
 	public readonly pool: Pool<Client>;
 
 	constructor(
-		config: PoolConfig,
+		pool: PoolConfig|Pool<Client>,
 		logFunction: LogFunction = (query) => {},
 	) {
-		this.config = config;
 		this.logFunction = logFunction;
-		this.pool = new Pool(this.config);
+		if (pool instanceof Pool) {
+			this.pool = pool;
+		} else {
+			this.pool = new Pool(pool);
+		}
 	}
 
 	async disconnect() {
