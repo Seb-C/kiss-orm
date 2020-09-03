@@ -319,7 +319,7 @@ class ArticleRepository extends CrudRepository<ArticleModel> {
         super({
             // [...]
             relationships: {
-                articles: (user: UserModel) => (new UserRepository(database)).search(sql`
+                authors: (article: ArticleModel) => (new UserRepository(database)).search(sql`
                     "id" IN (
                         SELECT "userId"
                         FROM "ArticleAuthors"
