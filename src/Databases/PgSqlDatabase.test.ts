@@ -14,7 +14,7 @@ describe('PgSqlDatabase', async function() {
 			port: 5432,
 			database: 'test',
 			user: 'test',
-			password: 'test'
+			password: 'test',
 		}, query => this.loggedQueries.push(query));
 
 		await db.connect();
@@ -63,7 +63,7 @@ describe('PgSqlDatabase', async function() {
 		await db.query(sql`
 			DROP TABLE IF EXISTS "Migrations";
 			DROP TABLE IF EXISTS "TestMigration";
-			CREATE TEMPORARY TABLE IF NOT EXISTS "TestMigration" ("text" TEXT NOT NULL);
+			CREATE TABLE "TestMigration" ("text" TEXT NOT NULL);
 		`);
 
 		await db.migrate({
@@ -80,7 +80,7 @@ describe('PgSqlDatabase', async function() {
 		await db.query(sql`
 			DROP TABLE IF EXISTS "Migrations";
 			DROP TABLE IF EXISTS "TestMigration";
-			CREATE TEMPORARY TABLE IF NOT EXISTS "TestMigration" ("text" TEXT NOT NULL);
+			CREATE TABLE "TestMigration" ("text" TEXT NOT NULL);
 		`);
 
 		await db.migrate({}); // Creating the Migrations table
@@ -101,7 +101,7 @@ describe('PgSqlDatabase', async function() {
 		await db.query(sql`
 			DROP TABLE IF EXISTS "Migrations";
 			DROP TABLE IF EXISTS "TestMigration";
-			CREATE TEMPORARY TABLE IF NOT EXISTS "TestMigration" ("text" TEXT NOT NULL);
+			CREATE TABLE "TestMigration" ("text" TEXT NOT NULL);
 		`);
 
 		await db.migrate({}); // Creating the Migrations table
@@ -122,8 +122,7 @@ describe('PgSqlDatabase', async function() {
 		await db.query(sql`
 			DROP TABLE IF EXISTS "Migrations";
 			DROP TABLE IF EXISTS "TestMigration";
-			CREATE TEMPORARY TABLE IF NOT EXISTS "TestMigration" ("text" TEXT NOT NULL);
-			DELETE FROM "TestMigration";
+			CREATE TABLE "TestMigration" ("text" TEXT NOT NULL);
 		`);
 
 		await expectAsync(
