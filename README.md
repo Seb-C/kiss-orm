@@ -16,6 +16,7 @@
 * [Eager loading for relationships](#eager-loading-for-relationships)
 * [Autoloading relationships](#autoloading-relationships)
 * [Advanced typings](#advanced-typings)
+* [Transactions](#transactions)
 
 ## Introduction
 
@@ -420,4 +421,18 @@ export default class User extends CrudRepository<UserModel, UserParams, string> 
         });
     }
 }
+```
+
+## Transactions
+
+The `sequence` method can be used to run transactions. It ensures that all the queries
+are done on the same connection and that the connection is dedicated
+(no other async process can execute a query on this connection during the sequence).
+
+```typescript
+await database.sequence(async query => {
+    await query(sql`BEGIN;`);
+    // [...]
+    await query(sql`COMMIT;`);
+});
 ```
