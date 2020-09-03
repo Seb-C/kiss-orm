@@ -2,21 +2,13 @@ import { Client, PoolConfig } from 'pg';
 import * as Pool from 'pg-pool';
 import { ident as formatIdentifier } from 'pg-format';
 import SqlQuery from '../Queries/SqlQuery';
-import CompiledQuery from '../Queries/CompiledQuery';
 import DatabaseInterface from './DatabaseInterface';
 import { sql } from '..';
 
-type LogFunction = (query: CompiledQuery) => void;
-
 export default class PgSqlDatabase implements DatabaseInterface {
-	private readonly logFunction: LogFunction;
 	public readonly pool: Pool<Client>;
 
-	constructor(
-		pool: PoolConfig|Pool<Client>,
-		logFunction: LogFunction = (query) => {},
-	) {
-		this.logFunction = logFunction;
+	constructor(pool: PoolConfig|Pool<Client>) {
 		if (pool instanceof Pool) {
 			this.pool = pool;
 		} else {
@@ -28,16 +20,13 @@ export default class PgSqlDatabase implements DatabaseInterface {
 		await this.pool.end();
 	}
 
+	indexToPlaceholder (i: number): string {
+		return '$' + (i + 1);
+	}
+
 	async query(query: SqlQuery): Promise<any[]> {
-		const indexToPlaceholder = (i: number) => '$' + (i + 1);
-
-		const compiledQuery = query.compile(indexToPlaceholder, formatIdentifier);
-		this.logFunction(compiledQuery);
-
-		const result = await this.pool.query(
-			compiledQuery.sql,
-			<any[]><any>compiledQuery.params,
-		);
+		const compiledQuery = query.compile(this.indexToPlaceholder, formatIdentifier);
+		const result = await this.pool.query(compiledQuery.sql, <any[]><any>compiledQuery.params);
 
 		return result.rows;
 	}

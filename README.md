@@ -8,7 +8,6 @@
 * [Cascade](#cascade)
 * [Scoping](#scoping)
 * [Soft delete](#soft-delete)
-* [Logging](#logging)
 * [Migrations](#migrations)
 * [Relationships](#relationships)
     - [one-to-one](#one-to-one)
@@ -213,19 +212,6 @@ class UsersRepository extends CrudRepository<UserModel> {
         await this.update(user, { deletedFlag: true });
     }
 }
-```
-
-## Logging
-
-You can log all SQL queries by defining a callback to the database object.
-This callback receives a `CompiledQuery` object.
-
-Example (logging everything with `console.log`):
-
-```typescript
-const db = new PgSqlDatabase({
-    // https://node-postgres.com/api/client#new-clientconfig-object
-}, console.log);
 ```
 
 ## Migrations
