@@ -1,4 +1,5 @@
-import { Client, ClientConfig } from 'pg';
+import { Client, PoolConfig } from 'pg';
+import * as Pool from 'pg-pool';
 import { ident as formatIdentifier } from 'pg-format';
 import SqlQuery from '../Queries/SqlQuery';
 import CompiledQuery from '../Queries/CompiledQuery';
@@ -8,42 +9,25 @@ import { sql } from '..';
 type LogFunction = (query: CompiledQuery) => void;
 
 export default class PgSqlDatabase implements DatabaseInterface {
-	private readonly config: ClientConfig;
-	private readonly logFunction: LogFunction;
-	public client!: Client;
+	public readonly config: PoolConfig;
+	public readonly logFunction: LogFunction;
+	public readonly pool: Pool<Client>;
 
 	constructor(
-		config: ClientConfig,
+		config: PoolConfig,
 		logFunction: LogFunction = (query) => {},
 	) {
 		this.config = config;
 		this.logFunction = logFunction;
+		this.pool = new Pool(this.config);
 	}
 
-	async connect(autoReconnectDelay: number|null = null) {
-		this.client = new Client(this.config);
-		await this.client.connect();
-
-		if (autoReconnectDelay !== null) {
-			this.client.on('error', (err) => {
-				console.error(err);
-
-				const tryToReconnect = async () => {
-					try {
-						await this.connect(autoReconnectDelay);
-					} catch (error) {
-						console.error(error);
-						setTimeout(tryToReconnect, autoReconnectDelay);
-					}
-				};
-
-				setTimeout(tryToReconnect, autoReconnectDelay);
-			});
-		}
+	async connect() {
+		// Nothing to do, it is handled by the pool
 	}
 
 	async disconnect() {
-		await this.client.end()
+		await this.pool.end();
 	}
 
 	async query(query: SqlQuery): Promise<any[]> {
@@ -52,7 +36,7 @@ export default class PgSqlDatabase implements DatabaseInterface {
 		const compiledQuery = query.compile(indexToPlaceholder, formatIdentifier);
 		this.logFunction(compiledQuery);
 
-		const result = await this.client.query(
+		const result = await this.pool.query(
 			compiledQuery.sql,
 			<any[]><any>compiledQuery.params,
 		);

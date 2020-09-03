@@ -34,7 +34,7 @@ Kiss-ORM is a new, very opinionated ORM for TypeScript. Here is a description of
 
 ## Compatibility
 
-Currently, Kiss-ORM is only compatible with PostgreSQL via `node-postgres` (the `pg` package),
+Currently, Kiss-ORM is only compatible with PostgreSQL via `node-postgres`,
 but there is an abstraction layer that will allows compatibility
 with other databases in the future. You are welcome to contribute :) .
 
@@ -113,6 +113,7 @@ class UserRepository extends CrudRepository<UserModel> {
 
 const db = new PgSqlDatabase({
     // https://node-postgres.com/api/client#new-clientconfig-object
+    // https://node-postgres.com/api/pool#new-poolconfig-object
 });
 await db.connect();
 
