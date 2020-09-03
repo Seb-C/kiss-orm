@@ -12,6 +12,7 @@ describe('PgSqlDatabase', async function() {
 			database: 'test',
 			user: 'test',
 			password: 'test',
+			max: 2,
 		});
 	});
 
@@ -44,6 +45,73 @@ describe('PgSqlDatabase', async function() {
 		`);
 
 		expect(result.length).toBe(0);
+	});
+
+	it('sequence - normal use', async function() {
+		await db.query(sql`
+			DROP TABLE IF EXISTS "TestSequence";
+			CREATE TABLE "TestSequence" (x INT NOT NULL);
+		`);
+
+		await db.sequence(async query => {
+			await query(sql`BEGIN;`);
+			await query(sql`INSERT INTO "TestSequence" VALUES (1);`);
+			await query(sql`INSERT INTO "TestSequence" VALUES (2);`);
+			await query(sql`COMMIT;`);
+		});
+
+		const result = await db.query(sql`SELECT * FROM "TestSequence";`);
+		expect(result.length).toBe(2);
+		expect(result[0]).toEqual({ x: 1 });
+		expect(result[1]).toEqual({ x: 2 });
+
+		expect(db.pool.idleCount).toEqual(db.pool.totalCount);
+	});
+	it('sequence - the connection is dedicated', async function() {
+		await db.query(sql`
+			DROP TABLE IF EXISTS "TestSequence";
+			CREATE TABLE "TestSequence" (x INT NOT NULL);
+		`);
+
+		const seq = db.sequence(async query => {
+			await query(sql`BEGIN;`);
+			await query(sql`INSERT INTO "TestSequence" VALUES (1);`);
+			await new Promise((resolve) => setTimeout(resolve, 500));
+			await query(sql`INSERT INTO "TestSequence" VALUES (2);`);
+			await query(sql`ROLLBACK;`);
+		});
+
+		// This query should be done at the same time than the two inserts
+		await new Promise((resolve) => setTimeout(resolve, 200));
+		await db.query(sql`INSERT INTO "TestSequence" VALUES (3);`);
+
+		await seq;
+
+		const result = await db.query(sql`SELECT * FROM "TestSequence";`);
+		expect(result.length).toBe(1);
+		expect(result[0]).toEqual({ x: 3 });
+
+		expect(db.pool.idleCount).toEqual(db.pool.totalCount);
+	});
+	it('sequence - the connection is released when failing', async function() {
+		try {
+			await db.sequence(async query => {
+				throw new Error('test');
+			});
+		} catch (error) {
+			if (error.message !== 'test') {
+				throw error;
+			}
+		}
+
+		expect(db.pool.idleCount).toEqual(db.pool.totalCount);
+	});
+	it('sequence - returns the given value', async function() {
+		const result = await db.sequence(async query => {
+			return 42;
+		});
+
+		expect(result).toBe(42);
 	});
 
 	it('migrations - from scratch', async function() {
