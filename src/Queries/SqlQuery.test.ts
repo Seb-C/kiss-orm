@@ -43,6 +43,18 @@ describe('SqlQuery', async function() {
 		]);
 	});
 
+	it('join - default delimiter', async function() {
+		const query = SqlQuery.join([
+			new SqlQuery(['foo', new QueryParam(42)]),
+			new SqlQuery(['bar', new QueryParam(43)]),
+		]);
+		expect(query.parts).toEqual([
+			new SqlQuery(['foo', new QueryParam(42)]),
+			new SqlQuery([', ']),
+			new SqlQuery(['bar', new QueryParam(43)]),
+		]);
+	});
+
 	it('compile - basic use', async function() {
 		const query = new SqlQuery(['foo', new QueryParam(42), 'bar']);
 		expect(query.compile(i => '$' + (i + 1), s => s)).toEqual(
