@@ -96,6 +96,9 @@ class UserModel {
     public readonly id!: number;
     public readonly email!: string;
     public readonly isBlocked!: boolean;
+
+    // Nullable fields are converted to `null`, not `undefined`.
+    public readonly emailVerificationCode!: string|null;
 }
 
 class UserRepository extends CrudRepository<UserModel> {
@@ -133,6 +136,7 @@ const updatedUser = await repository.update(user, {
 const newUser = await repository.create({
     email: 'alice@example.com',
     isBlocked: false,
+    emailVerificationCode: null,
 });
 
 await repository.delete(user);
