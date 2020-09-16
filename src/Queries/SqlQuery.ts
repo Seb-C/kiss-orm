@@ -34,7 +34,10 @@ export default class SqlQuery {
 	 * The delimiter is an SqlQuery rather than a string
 	 * in order to avoid potential SQL injections.
 	 */
-	static join (queries: SqlQuery[], delimiter: SqlQuery): SqlQuery {
+	static join (
+		queries: SqlQuery[],
+		delimiter: SqlQuery = SqlQuery.createFromTemplateString`, `,
+	): SqlQuery {
 		const joinedParts: QueryPart[] = [];
 
 		for (let i = 0; i < queries.length; i++) {
