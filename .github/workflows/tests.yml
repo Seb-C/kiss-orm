@@ -1,0 +1,15 @@
+name: All tests
+on:
+  pull_request:
+    branches: [ master ]
+jobs:
+  tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+    - name: Retrieving the source files
+      uses: actions/checkout@v2
+    - name: Installing the dependencies
+      run: npm install
+    - name: Starting the database
+      run: docker-compose up --abort-on-container-exit --exit-code-from tests
