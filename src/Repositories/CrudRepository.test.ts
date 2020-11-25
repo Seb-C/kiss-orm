@@ -16,6 +16,8 @@ class TestModel {
 
 	public readonly relatedTests?: RelatedTestModel[];
 	public readonly manyManyRelatedTests?: RelatedTestModel[];
+
+	public propertyUnrelatedToTheTable?: boolean;
 }
 
 class RelatedTestModel {
@@ -323,6 +325,17 @@ describe('CrudRepository', () => {
 		await expectAsync(
 			repository.update(model, { text: 'test 2' })
 		).toBeRejectedWithError(TooManyResultsError);
+	});
+	it('update - should not affect unrelated properties', async () => {
+		await db.query(sql`INSERT INTO "Test" VALUES (1, 'test 1', 11, DATE 'yesterday');`);
+		const model = await repository.get(1);
+		model.propertyUnrelatedToTheTable = true;
+
+		const result = await repository.update(model, {
+			text: 'test 2',
+		});
+
+		expect(result.propertyUnrelatedToTheTable).toEqual(true);
 	});
 
 	it('delete - normal case', async () => {

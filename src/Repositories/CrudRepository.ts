@@ -130,7 +130,9 @@ export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType
 			throw new TooManyResultsError(`Multiple objects found in table ${this.table} for ${this.primaryKey} = ${(<any>model)[this.primaryKey]}`);
 		}
 
-		return this.createModelFromAttributes(results[0]);
+		const newModel = await this.createModelFromAttributes(model);
+		Object.assign(newModel, results[0]);
+		return newModel;
 	}
 
 	public async delete(model: Model) {
