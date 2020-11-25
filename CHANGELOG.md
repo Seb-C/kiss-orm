@@ -1,6 +1,7 @@
 # 1.1.1
 
 - Fixing some classes requiring the index, creating recursive dependencies
+- Fixing the update method removing all properties unrelated to the table
 
 # 1.1.0
 
