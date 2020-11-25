@@ -1,3 +1,7 @@
+# 1.1.1
+
+- Fixing some classes requiring the index, creating recursive dependencies
+
 # 1.1.0
 
 - Added a default value (comma) for the `sqlJoin` function
