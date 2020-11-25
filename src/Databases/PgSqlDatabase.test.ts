@@ -1,6 +1,8 @@
 import 'jasmine';
 import PgSqlDatabase from './PgSqlDatabase';
-import { sql } from '..';
+import SqlQuery from '../Queries/SqlQuery';
+
+const sql = SqlQuery.createFromTemplateString;
 
 describe('PgSqlDatabase', async function() {
 	let db: PgSqlDatabase;

@@ -2,7 +2,8 @@ import { Pool, PoolClient, PoolConfig } from 'pg';
 import { ident as formatIdentifier } from 'pg-format';
 import SqlQuery from '../Queries/SqlQuery';
 import DatabaseInterface from './DatabaseInterface';
-import { sql } from '..';
+
+const sql = SqlQuery.createFromTemplateString;
 
 export default class PgSqlDatabase implements DatabaseInterface {
 	public readonly pool: Pool;

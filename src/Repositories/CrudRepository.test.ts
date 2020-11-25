@@ -3,8 +3,10 @@ import NotFoundError from '../Errors/NotFoundError';
 import TooManyResultsError from '../Errors/TooManyResultsError';
 import RelationshipNotFoundError from '../Errors/RelationshipNotFoundError';
 import PgSqlDatabase from '../Databases/PgSqlDatabase';
-import { sql } from '..';
 import CrudRepository from './CrudRepository';
+import SqlQuery from '../Queries/SqlQuery';
+
+const sql = SqlQuery.createFromTemplateString;
 
 class TestModel {
 	public readonly id!: number;

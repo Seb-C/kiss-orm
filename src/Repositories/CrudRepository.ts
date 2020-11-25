@@ -4,7 +4,8 @@ import RelationshipNotFoundError from '../Errors/RelationshipNotFoundError';
 import DatabaseInterface from '../Databases/DatabaseInterface';
 import SqlQuery from '../Queries/SqlQuery';
 import QueryIdentifier from '../Queries/QueryIdentifier';
-import { sql } from '..';
+
+const sql = SqlQuery.createFromTemplateString;
 
 type Relationship<Model> = ((model: Model) => Promise<any>);
 type Relationships<Model> = { [key: string]: Relationship<Model> };
