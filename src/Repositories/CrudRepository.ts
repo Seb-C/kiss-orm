@@ -130,7 +130,7 @@ export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType
 			)
 		);
 
-		const results = await this.database.updateAndGet(sql`
+		let results = await this.database.updateAndGet(sql`
 			UPDATE ${new QueryIdentifier(this.table)}
 			SET ${SqlQuery.join(fieldQueries, sql`, `)}
 			WHERE ${new QueryIdentifier(this.primaryKey)} = ${(<any>model)[this.primaryKey]}
@@ -138,7 +138,7 @@ export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType
 
 		if (results === null) {
 			// TODO need a sequence between those queries
-			const results = await this.database.query(sql`
+			results = await this.database.query(sql`
 				SELECT *
 				FROM ${new QueryIdentifier(this.table)}
 				WHERE ${new QueryIdentifier(this.primaryKey)} = ${(<any>model)[this.primaryKey]};
@@ -148,7 +148,9 @@ export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType
 				throw new NotFoundError(`Object not found in table ${this.table} after update (got ${this.primaryKey} = ${(<any>model)[this.primaryKey]})`);
 			}
 
-			return this.createModelFromAttributes(results[0]);
+			const newModel = await this.createModelFromAttributes(model);
+			Object.assign(newModel, results[0]);
+			return newModel;
 		} else {
 			if (results.length === 0) {
 				throw new NotFoundError(`Object not found in table ${this.table} for ${this.primaryKey} = ${(<any>model)[this.primaryKey]}`);
@@ -156,9 +158,11 @@ export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType
 			if (results.length > 1) {
 				throw new TooManyResultsError(`Multiple objects found in table ${this.table} for ${this.primaryKey} = ${(<any>model)[this.primaryKey]}`);
 			}
-
-			return await this.createModelFromAttributes(results[0]);
 		}
+
+		const newModel = await this.createModelFromAttributes(model);
+		Object.assign(newModel, results[0]);
+		return newModel;
 	}
 
 	public async delete(model: Model) {
