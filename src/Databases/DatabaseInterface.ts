@@ -12,8 +12,6 @@ export default interface DatabaseInterface {
 	 * and without any other async query interfering.
 	 */
 	sequence<T>(
-		sequence: (
-			query: (query: SqlQuery) => Promise<any[]>,
-		) => Promise<T>,
+		sequence: (sequenceDb: DatabaseInterface) => Promise<T>,
 	): Promise<T>;
 };

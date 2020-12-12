@@ -1,4 +1,5 @@
 import 'jasmine';
+import { Pool } from 'pg';
 import PgSqlDatabase from './PgSqlDatabase';
 import SqlQuery from '../Queries/SqlQuery';
 
@@ -55,11 +56,11 @@ describe('PgSqlDatabase', async function() {
 			CREATE TABLE "TestSequence" (x INT NOT NULL);
 		`);
 
-		await db.sequence(async query => {
-			await query(sql`BEGIN;`);
-			await query(sql`INSERT INTO "TestSequence" VALUES (1);`);
-			await query(sql`INSERT INTO "TestSequence" VALUES (2);`);
-			await query(sql`COMMIT;`);
+		await db.sequence(async sequenceDb => {
+			await sequenceDb.query(sql`BEGIN;`);
+			await sequenceDb.query(sql`INSERT INTO "TestSequence" VALUES (1);`);
+			await sequenceDb.query(sql`INSERT INTO "TestSequence" VALUES (2);`);
+			await sequenceDb.query(sql`COMMIT;`);
 		});
 
 		const result = await db.query(sql`SELECT * FROM "TestSequence";`);
@@ -67,7 +68,8 @@ describe('PgSqlDatabase', async function() {
 		expect(result[0]).toEqual({ x: 1 });
 		expect(result[1]).toEqual({ x: 2 });
 
-		expect(db.pool.idleCount).toEqual(db.pool.totalCount);
+		const pool = (<Pool>db.connection);
+		expect(pool.idleCount).toEqual(pool.totalCount);
 	});
 	it('sequence - the connection is dedicated', async function() {
 		await db.query(sql`
@@ -75,12 +77,12 @@ describe('PgSqlDatabase', async function() {
 			CREATE TABLE "TestSequence" (x INT NOT NULL);
 		`);
 
-		const seq = db.sequence(async query => {
-			await query(sql`BEGIN;`);
-			await query(sql`INSERT INTO "TestSequence" VALUES (1);`);
+		const seq = db.sequence(async sequenceDb => {
+			await sequenceDb.query(sql`BEGIN;`);
+			await sequenceDb.query(sql`INSERT INTO "TestSequence" VALUES (1);`);
 			await new Promise((resolve) => setTimeout(resolve, 500));
-			await query(sql`INSERT INTO "TestSequence" VALUES (2);`);
-			await query(sql`ROLLBACK;`);
+			await sequenceDb.query(sql`INSERT INTO "TestSequence" VALUES (2);`);
+			await sequenceDb.query(sql`ROLLBACK;`);
 		});
 
 		// This query should be done at the same time than the two inserts
@@ -93,7 +95,8 @@ describe('PgSqlDatabase', async function() {
 		expect(result.length).toBe(1);
 		expect(result[0]).toEqual({ x: 3 });
 
-		expect(db.pool.idleCount).toEqual(db.pool.totalCount);
+		const pool = (<Pool>db.connection);
+		expect(pool.idleCount).toEqual(pool.totalCount);
 	});
 	it('sequence - the connection is released when failing', async function() {
 		try {
@@ -106,11 +109,21 @@ describe('PgSqlDatabase', async function() {
 			}
 		}
 
-		expect(db.pool.idleCount).toEqual(db.pool.totalCount);
+		const pool = (<Pool>db.connection);
+		expect(pool.idleCount).toEqual(pool.totalCount);
 	});
 	it('sequence - returns the given value', async function() {
 		const result = await db.sequence(async query => {
 			return 42;
+		});
+
+		expect(result).toBe(42);
+	});
+	it('sequence - a sequence in a sequence works', async function() {
+		const result = await db.sequence(async db2 => {
+			return db2.sequence(async db3 => {
+				return 42;
+			});
 		});
 
 		expect(result).toBe(42);

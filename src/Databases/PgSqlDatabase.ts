@@ -1,4 +1,4 @@
-import { Pool, PoolClient, PoolConfig } from 'pg';
+import { Pool, PoolClient, ClientBase, PoolConfig } from 'pg';
 import { ident as formatIdentifier } from 'pg-format';
 import SqlQuery from '../Queries/SqlQuery';
 import DatabaseInterface from './DatabaseInterface';
@@ -6,25 +6,27 @@ import DatabaseInterface from './DatabaseInterface';
 const sql = SqlQuery.createFromTemplateString;
 
 export default class PgSqlDatabase implements DatabaseInterface {
-	public readonly pool: Pool;
+	public readonly connection: Pool|ClientBase;
 
-	constructor(pool: PoolConfig|Pool) {
-		if (pool instanceof Pool) {
-			this.pool = pool;
+	constructor(connection: PoolConfig|Pool|ClientBase) {
+		if (connection instanceof Pool || connection instanceof ClientBase) {
+			this.connection = connection;
 		} else {
-			this.pool = new Pool(pool);
+			this.connection = new Pool(connection);
 		}
 	}
 
 	async disconnect() {
-		await this.pool.end();
+		if (this.connection instanceof Pool) {
+			await this.connection.end();
+		}
 	}
 
 	indexToPlaceholder (i: number): string {
 		return '$' + (i + 1);
 	}
 
-	private queryPoolOrClient = async (client: Pool|PoolClient, query: SqlQuery): Promise<any[]> => {
+	private queryPoolOrClient = async (client: Pool|ClientBase, query: SqlQuery): Promise<any[]> => {
 		const compiledQuery = query.compile(this.indexToPlaceholder, formatIdentifier);
 		const result = await client.query(compiledQuery.sql, <any[]><any>compiledQuery.params);
 
@@ -32,20 +34,23 @@ export default class PgSqlDatabase implements DatabaseInterface {
 	}
 
 	async query(query: SqlQuery): Promise<any[]> {
-		return this.queryPoolOrClient(this.pool, query);
+		return this.queryPoolOrClient(this.connection, query);
 	}
 
 	async sequence<T>(
-		sequence: (
-			query: (query: SqlQuery) => Promise<any[]>,
-		) => Promise<T>,
+		sequence: (sequenceDb: PgSqlDatabase) => Promise<T>,
 	): Promise<T> {
-		const client = await this.pool.connect();
+		if (!(this.connection instanceof Pool)) {
+			// Already in a sequence, so another call changes nothing but works for conveniency
+			return sequence(this);
+		}
+
+		const client = <PoolClient>(await this.connection.connect());
 
 		try {
-			const result = await sequence(async (query: SqlQuery): Promise<any[]> => {
-				return this.queryPoolOrClient(client, query);
-			});
+			const result = await sequence(
+				new PgSqlDatabase(<ClientBase>client)
+			);
 			client.release();
 			return result;
 		} catch (error) {
@@ -68,16 +73,16 @@ export default class PgSqlDatabase implements DatabaseInterface {
 				continue;
 			}
 
-			await this.sequence(async query => {
-				await query(sql`BEGIN;`);
+			await this.sequence(async sequenceDb => {
+				await sequenceDb.query(sql`BEGIN;`);
 				try {
-					await query(migrationQuery);
-					await query(sql`INSERT INTO "Migrations" VALUES (${migrationName});`);
+					await sequenceDb.query(migrationQuery);
+					await sequenceDb.query(sql`INSERT INTO "Migrations" VALUES (${migrationName});`);
 				} catch (error) {
-					await query(sql`ROLLBACK;`);
+					await sequenceDb.query(sql`ROLLBACK;`);
 					throw error;
 				}
-				await query(sql`COMMIT;`);
+				await sequenceDb.query(sql`COMMIT;`);
 			});
 		}
 	}
