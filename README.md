@@ -434,9 +434,9 @@ are done on the same connection and that the connection is dedicated
 (no other async process can execute a query on this connection during the sequence).
 
 ```typescript
-await database.sequence(async query => {
-    await query(sql`BEGIN;`);
+await database.sequence(async sequenceDb => {
+    await sequenceDb.query(sql`BEGIN;`);
     // [...]
-    await query(sql`COMMIT;`);
+    await sequenceDb.query(sql`COMMIT;`);
 });
 ```

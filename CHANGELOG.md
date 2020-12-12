@@ -1,3 +1,7 @@
+# 2.0.0
+
+- Changing the design of the sequence, so that it gives a proper database rather than a single query method.
+
 # 1.1.1
 
 - Fixing some classes requiring the index, creating recursive dependencies
