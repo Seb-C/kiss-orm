@@ -5,7 +5,7 @@
   "homepage": "https://github.com/Seb-C/kiss-orm",
   "license": "MIT",
   "author": "Sébastien Caparros",
-  "version": "1.1.1",
+  "version": "2.0.0",
   "engines": {
     "node": ">= 8.0.0"
   },
