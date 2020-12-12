@@ -96,73 +96,75 @@ export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType
 	}
 
 	public async create(attributes: Required<ValidAttributes>): Promise<Model> {
-		const entries = Object.entries(attributes);
-		const fields = entries.map(([key, _]: [string, any]) => sql`${new QueryIdentifier(key)}`);
-		const values = entries.map(([_, val]: [string, any]) => sql`${val}`);
+		return this.database.sequence(async (sequenceDb: DatabaseInterface): Promise<Model> => {
+			const entries = Object.entries(attributes);
+			const fields = entries.map(([key, _]: [string, any]) => sql`${new QueryIdentifier(key)}`);
+			const values = entries.map(([_, val]: [string, any]) => sql`${val}`);
 
-		const data = (await this.database.insertAndGet(sql`
-			INSERT INTO ${new QueryIdentifier(this.table)} (${SqlQuery.join(fields, sql`, `)})
-			VALUES (${SqlQuery.join(values, sql`, `)})
-		`))[0];
+			const data = (await sequenceDb.insertAndGet(sql`
+				INSERT INTO ${new QueryIdentifier(this.table)} (${SqlQuery.join(fields, sql`, `)})
+				VALUES (${SqlQuery.join(values, sql`, `)})
+			`))[0];
 
-		if (typeof data === 'string' || typeof data === 'number') {
-			// TODO need a sequence between those queries
-			const results = await this.database.query(sql`
-				SELECT *
-				FROM ${new QueryIdentifier(this.table)}
-				WHERE ${new QueryIdentifier(this.primaryKey)} = ${data};
-			`);
+			if (typeof data === 'string' || typeof data === 'number') {
+				const results = await sequenceDb.query(sql`
+					SELECT *
+					FROM ${new QueryIdentifier(this.table)}
+					WHERE ${new QueryIdentifier(this.primaryKey)} = ${data};
+				`);
 
-			if (results.length === 0) {
-				throw new NotFoundError(`Object not found in table ${this.table} after insert (got ${this.primaryKey} = ${data})`);
+				if (results.length === 0) {
+					throw new NotFoundError(`Object not found in table ${this.table} after insert (got ${this.primaryKey} = ${data})`);
+				}
+
+				return this.createModelFromAttributes(results[0]);
+			} else {
+				return this.createModelFromAttributes(data);
 			}
-
-			return this.createModelFromAttributes(results[0]);
-		} else {
-			return this.createModelFromAttributes(data);
-		}
+		});
 	}
 
 	public async update(model: Model, attributes: Partial<ValidAttributes>): Promise<Model> {
-		const fieldQueries = Object.entries(attributes).map(
-			([key, value]: [string, any]) => (
-				sql`${new QueryIdentifier(key)} = ${value}`
-			)
-		);
+		return this.database.sequence(async (sequenceDb: DatabaseInterface): Promise<Model> => {
+			const fieldQueries = Object.entries(attributes).map(
+				([key, value]: [string, any]) => (
+					sql`${new QueryIdentifier(key)} = ${value}`
+				)
+			);
 
-		let results = await this.database.updateAndGet(sql`
-			UPDATE ${new QueryIdentifier(this.table)}
-			SET ${SqlQuery.join(fieldQueries, sql`, `)}
-			WHERE ${new QueryIdentifier(this.primaryKey)} = ${(<any>model)[this.primaryKey]}
-		`);
-
-		if (results === null) {
-			// TODO need a sequence between those queries
-			results = await this.database.query(sql`
-				SELECT *
-				FROM ${new QueryIdentifier(this.table)}
-				WHERE ${new QueryIdentifier(this.primaryKey)} = ${(<any>model)[this.primaryKey]};
+			let results = await sequenceDb.updateAndGet(sql`
+				UPDATE ${new QueryIdentifier(this.table)}
+				SET ${SqlQuery.join(fieldQueries, sql`, `)}
+				WHERE ${new QueryIdentifier(this.primaryKey)} = ${(<any>model)[this.primaryKey]}
 			`);
 
-			if (results.length === 0) {
-				throw new NotFoundError(`Object not found in table ${this.table} after update (got ${this.primaryKey} = ${(<any>model)[this.primaryKey]})`);
+			if (results === null) {
+				results = await sequenceDb.query(sql`
+					SELECT *
+					FROM ${new QueryIdentifier(this.table)}
+					WHERE ${new QueryIdentifier(this.primaryKey)} = ${(<any>model)[this.primaryKey]};
+				`);
+
+				if (results.length === 0) {
+					throw new NotFoundError(`Object not found in table ${this.table} after update (got ${this.primaryKey} = ${(<any>model)[this.primaryKey]})`);
+				}
+
+				const newModel = await this.createModelFromAttributes(model);
+				Object.assign(newModel, results[0]);
+				return newModel;
+			} else {
+				if (results.length === 0) {
+					throw new NotFoundError(`Object not found in table ${this.table} for ${this.primaryKey} = ${(<any>model)[this.primaryKey]}`);
+				}
+				if (results.length > 1) {
+					throw new TooManyResultsError(`Multiple objects found in table ${this.table} for ${this.primaryKey} = ${(<any>model)[this.primaryKey]}`);
+				}
 			}
 
 			const newModel = await this.createModelFromAttributes(model);
 			Object.assign(newModel, results[0]);
 			return newModel;
-		} else {
-			if (results.length === 0) {
-				throw new NotFoundError(`Object not found in table ${this.table} for ${this.primaryKey} = ${(<any>model)[this.primaryKey]}`);
-			}
-			if (results.length > 1) {
-				throw new TooManyResultsError(`Multiple objects found in table ${this.table} for ${this.primaryKey} = ${(<any>model)[this.primaryKey]}`);
-			}
-		}
-
-		const newModel = await this.createModelFromAttributes(model);
-		Object.assign(newModel, results[0]);
-		return newModel;
+		});
 	}
 
 	public async delete(model: Model) {
