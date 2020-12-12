@@ -1,4 +1,4 @@
-import { Pool, PoolClient, ClientBase, PoolConfig } from 'pg';
+import { Pool, PoolClient, ClientBase, PoolConfig, Client } from 'pg';
 import { ident as formatIdentifier } from 'pg-format';
 import SqlQuery from '../Queries/SqlQuery';
 import DatabaseInterface from './DatabaseInterface';
@@ -9,10 +9,10 @@ export default class PgSqlDatabase implements DatabaseInterface {
 	public readonly connection: Pool|ClientBase;
 
 	constructor(connection: PoolConfig|Pool|ClientBase) {
-		if (connection instanceof Pool || connection instanceof ClientBase) {
+		if (connection instanceof Pool || connection instanceof Client) {
 			this.connection = connection;
 		} else {
-			this.connection = new Pool(connection);
+			this.connection = new Pool(<PoolConfig>connection);
 		}
 	}
 

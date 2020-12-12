@@ -120,13 +120,24 @@ describe('PgSqlDatabase', async function() {
 		expect(result).toBe(42);
 	});
 	it('sequence - a sequence in a sequence works', async function() {
-		const result = await db.sequence(async db2 => {
-			return db2.sequence(async db3 => {
-				return 42;
+		await db.query(sql`
+			DROP TABLE IF EXISTS "TestSequence";
+			CREATE TABLE "TestSequence" (x INT NOT NULL);
+		`);
+
+		await db.sequence(async db2 => {
+			await db2.query(sql`BEGIN;`);
+			await db2.query(sql`INSERT INTO "TestSequence" VALUES (1);`);
+			await db2.sequence(async db3 => {
+				await db3.query(sql`INSERT INTO "TestSequence" VALUES (2);`);
 			});
+			await db2.query(sql`COMMIT;`);
 		});
 
-		expect(result).toBe(42);
+		const result = await db.query(sql`SELECT * FROM "TestSequence";`);
+		expect(result.length).toBe(2);
+		expect(result[0]).toEqual({ x: 1 });
+		expect(result[1]).toEqual({ x: 2 });
 	});
 
 	it('migrations - from scratch', async function() {
