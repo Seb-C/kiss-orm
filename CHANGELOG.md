@@ -1,6 +1,9 @@
 # 2.0.0
 
 - Changing the design of the sequence, so that it gives a proper database rather than a single query method.
+- Changed the minimal node version to 12 to avoid problems related to the ES6 modules
+- Updated the node dependencies
+- Added a simple abstraction layer to better support the databases capabilities when getting data after an insert or update
 
 # 1.1.1
 
