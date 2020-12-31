@@ -34,9 +34,8 @@ Kiss-ORM is a new, very opinionated ORM for TypeScript. Here is a description of
 
 ## Compatibility
 
-Currently, Kiss-ORM is only compatible with PostgreSQL via `node-postgres`,
-but there is an abstraction layer that will allows compatibility
-with other databases in the future. You are welcome to contribute :) .
+Kiss-ORM is compatible with the following databases:
+- PostgreSQL, via the `pg`, `pg-format` and `pg-pool` that you need to install
 
 ## Basics
 
