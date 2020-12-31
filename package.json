@@ -7,7 +7,7 @@
   "author": "Sébastien Caparros",
   "version": "2.0.0",
   "engines": {
-    "node": ">= 8.0.0"
+    "node": ">= 12.0.0"
   },
   "devDependencies": {
     "@types/jasmine": "^3.6.2",
@@ -23,6 +23,7 @@
     "pg-format": "^1.0.4",
     "pg-pool": "^3.2.2"
   },
+  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [

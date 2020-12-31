@@ -11,7 +11,7 @@ services:
     volumes:
       - database:/var/lib/postgresql/data
   tests:
-    image: node:8-alpine
+    image: node:12-alpine
     working_dir: /kiss-orm
     depends_on:
       - database
