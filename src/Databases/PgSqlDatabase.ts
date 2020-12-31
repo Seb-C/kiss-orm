@@ -86,4 +86,18 @@ export default class PgSqlDatabase implements DatabaseInterface {
 			});
 		}
 	}
+
+	async insertAndGet(standardInsertQuery: SqlQuery): Promise<number[]|string[]|any[]> {
+		return this.query(sql`
+			${standardInsertQuery}
+			RETURNING *;
+		`);
+	}
+
+	async updateAndGet(standardUpdateQuery: SqlQuery): Promise<null|any[]> {
+		return this.query(sql`
+			${standardUpdateQuery}
+			RETURNING *;
+		`);
+	}
 }

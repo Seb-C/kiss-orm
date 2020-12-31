@@ -219,4 +219,88 @@ describe('PgSqlDatabase', async function() {
 		const results = await db.query(sql`SELECT * FROM "TestMigration";`);
 		expect(results.length).toBe(0);
 	});
+
+	it('insertAndGet - inserting one row', async function() {
+		await db.query(sql`
+			DROP TABLE IF EXISTS "TestInsert";
+			CREATE TABLE "TestInsert" ("id" SERIAL, "text" TEXT NOT NULL);
+		`);
+
+		const result = await db.insertAndGet(sql`
+			INSERT INTO "TestInsert" VALUES (DEFAULT, 'test')
+		`);
+
+		expect(result).toEqual([
+			{
+				id: 1,
+				text: 'test',
+			},
+		]);
+	});
+	it('insertAndGet - inserting multiple rows', async function() {
+		await db.query(sql`
+			DROP TABLE IF EXISTS "TestInsert";
+			CREATE TABLE "TestInsert" ("id" SERIAL, "text" TEXT NOT NULL);
+		`);
+
+		const result = await db.insertAndGet(sql`
+			INSERT INTO "TestInsert" VALUES
+			(DEFAULT, 'test 1'),
+			(DEFAULT, 'test 2')
+		`);
+
+		expect(result).toEqual([
+			{
+				id: 1,
+				text: 'test 1',
+			}, {
+				id: 2,
+				text: 'test 2',
+			},
+		]);
+	});
+
+	it('updateAndGet - updating one row', async function() {
+		await db.query(sql`
+			DROP TABLE IF EXISTS "TestUpdate";
+			CREATE TABLE "TestUpdate" ("id" INTEGER, "text" TEXT NOT NULL);
+			INSERT INTO "TestUpdate" VALUES (1, 'test 1');
+		`);
+
+		const result = await db.updateAndGet(sql`
+			UPDATE "TestUpdate"
+			SET "text" = 'test 2'
+			WHERE "id" = 1
+		`);
+
+		expect(result).toEqual([
+			{
+				id: 1,
+				text: 'test 2',
+			},
+		]);
+	});
+	it('updateAndGet - updating multiple rows', async function() {
+		await db.query(sql`
+			DROP TABLE IF EXISTS "TestUpdate";
+			CREATE TABLE "TestUpdate" ("id" INTEGER, "text" TEXT NOT NULL);
+			INSERT INTO "TestUpdate" VALUES (1, 'test 1');
+			INSERT INTO "TestUpdate" VALUES (2, 'test 2');
+		`);
+
+		const result = await db.updateAndGet(sql`
+			UPDATE "TestUpdate"
+			SET "text" = 'test'
+		`);
+
+		expect(result).toEqual([
+			{
+				id: 1,
+				text: 'test',
+			}, {
+				id: 2,
+				text: 'test',
+			},
+		]);
+	});
 });

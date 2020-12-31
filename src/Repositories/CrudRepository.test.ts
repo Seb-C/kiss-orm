@@ -86,7 +86,7 @@ describe('CrudRepository', () => {
 	let scopedRepository: TestScopedRepository;
 	let relatedTestRepository: RelatedTestRepository;
 
-	beforeAll(async () => {
+	beforeEach(async () => {
 		db = new PgSqlDatabase({
 			host: 'database',
 			port: 5432,
@@ -94,12 +94,7 @@ describe('CrudRepository', () => {
 			user: 'test',
 			password: 'test'
 		});
-	});
-	afterAll(async () => {
-		await db.disconnect();
-	});
 
-	beforeEach(async () => {
 		await db.query(sql`
 			CREATE TEMPORARY TABLE "Test" (
 				"id" INTEGER NOT NULL,
@@ -127,6 +122,7 @@ describe('CrudRepository', () => {
 		await db.query(sql`DROP TABLE "Test";`);
 		await db.query(sql`DROP TABLE "RelatedTest";`);
 		await db.query(sql`DROP TABLE "ManyManyTest";`);
+		await db.disconnect();
 	});
 
 	it('get - normal case', async () => {
@@ -274,8 +270,42 @@ describe('CrudRepository', () => {
 		expect(result.number).toEqual(12);
 		expect(result.date).toBeInstanceOf(Date);
 	});
+	it('create - the database does not return new records', async () => {
+		db.insertAndGet = async (q: SqlQuery) => [2];
+		const result = await repository.create({
+			id: 2,
+			text: 'test 2',
+			number: 12,
+			date: new Date(),
+		});
+		expect(result).toBeInstanceOf(TestModel);
+		expect(result.id).toEqual(2);
+		expect(result.text).toEqual('test 2');
+		expect(result.number).toEqual(12);
+		expect(result.date).toBeInstanceOf(Date);
+	});
 
 	it('update - normal case', async () => {
+		await db.query(sql`INSERT INTO "Test" VALUES (1, 'test 1', 11, DATE 'yesterday');`);
+		const model = new TestModel();
+		Object.assign(model, {
+			id: 1,
+			text: 'test 1',
+			number: 11,
+			date: new Date(),
+		});
+
+		const result = await repository.update(model, {
+			text: 'test 2',
+		});
+
+		expect(result).toBeInstanceOf(TestModel);
+		expect(result.id).toEqual(1);
+		expect(result.text).toEqual('test 2');
+		expect(result.number).toEqual(11);
+	});
+	it('update - the database does not return updated records', async () => {
+		db.updateAndGet = async (q: SqlQuery) => null;
 		await db.query(sql`INSERT INTO "Test" VALUES (1, 'test 1', 11, DATE 'yesterday');`);
 		const model = new TestModel();
 		Object.assign(model, {
