@@ -26,15 +26,11 @@ export default class PgSqlDatabase implements DatabaseInterface {
 		return '$' + (i + 1);
 	}
 
-	private queryPoolOrClient = async (client: Pool|ClientBase, query: SqlQuery): Promise<any[]> => {
+	async query(query: SqlQuery): Promise<any[]> {
 		const compiledQuery = query.compile(this.indexToPlaceholder, formatIdentifier);
-		const result = await client.query(compiledQuery.sql, <any[]><any>compiledQuery.params);
+		const result = await this.connection.query(compiledQuery.sql, <any[]><any>compiledQuery.params);
 
 		return result.rows;
-	}
-
-	async query(query: SqlQuery): Promise<any[]> {
-		return this.queryPoolOrClient(this.connection, query);
 	}
 
 	async sequence<T>(
