@@ -96,7 +96,7 @@ describe('CrudRepository', () => {
 
 	beforeEach(async () => {
 		db = new PgSqlDatabase({
-			host: 'database',
+			host: 'pgsql',
 			port: 5432,
 			database: 'test',
 			user: 'test',
