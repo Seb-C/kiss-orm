@@ -24,7 +24,8 @@ services:
     image: node:12-alpine
     working_dir: /kiss-orm
     depends_on:
-      - database
+      - pgsql
+      - mysql
     command: npx ts-node ./node_modules/jasmine/bin/jasmine --config=jasmine.json
     volumes:
       - $PWD:/kiss-orm
