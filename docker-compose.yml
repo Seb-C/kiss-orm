@@ -10,6 +10,16 @@ services:
       POSTGRES_DB: test
     volumes:
       - database:/var/lib/postgresql/data
+  mysql:
+    image: mysql:5.7
+    restart: on-failure
+    environment:
+      MYSQL_USER: test
+      MYSQL_PASSWORD: test
+      MYSQL_DATABASE: test
+      MYSQL_ROOT_PASSWORD: test
+    volumes:
+      - database:/var/lib/postgresql/data
   tests:
     image: node:12-alpine
     working_dir: /kiss-orm
