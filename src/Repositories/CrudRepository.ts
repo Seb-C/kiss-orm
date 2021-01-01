@@ -1,14 +1,10 @@
 import NotFoundError from '../Errors/NotFoundError';
 import TooManyResultsError from '../Errors/TooManyResultsError';
-import RelationshipNotFoundError from '../Errors/RelationshipNotFoundError';
 import DatabaseInterface from '../Databases/DatabaseInterface';
 import SqlQuery from '../Queries/SqlQuery';
 import QueryIdentifier from '../Queries/QueryIdentifier';
 
 const sql = SqlQuery.createFromTemplateString;
-
-type Relationship<Model> = ((model: Model) => Promise<any>);
-type Relationships<Model> = { [key: string]: Relationship<Model> };
 
 export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType = any> {
 	protected readonly database: DatabaseInterface;
@@ -16,7 +12,6 @@ export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType
 	protected readonly primaryKey: string;
 	protected readonly model: new (attributes: Required<ValidAttributes>) => Model;
 	protected readonly scope: SqlQuery|null;
-	protected readonly relationships: Relationships<Model>;
 
 	constructor({
 		database,
@@ -24,21 +19,18 @@ export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType
 		model,
 		primaryKey,
 		scope = null,
-		relationships = {},
 	}: {
 		database: DatabaseInterface,
 		table: string,
 		primaryKey: string,
 		model: new (attributes: Required<ValidAttributes>) => Model,
 		scope?: SqlQuery|null,
-		relationships?: Relationships<Model>,
 	}) {
 		this.database = database;
 		this.table = table;
 		this.primaryKey = primaryKey;
 		this.model = model;
 		this.scope = scope;
-		this.relationships = relationships;
 	}
 
 	public async get(primaryKeyValue: PrimaryKeyType): Promise<Model> {
@@ -178,21 +170,5 @@ export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType
 		const model = Object.create(this.model.prototype);
 		Object.assign(model, attributes);
 		return model;
-	}
-
-	public async loadRelationship(model: Model, relationshipName: string): Promise<Model> {
-		if (!this.relationships.hasOwnProperty(relationshipName)) {
-			throw new RelationshipNotFoundError(`The relationship named ${relationshipName} does not exist (table ${this.table}).`);
-		}
-
-		const newModel = await this.createModelFromAttributes(model);
-		const relationshipData = await this.relationships[relationshipName](model);
-		Object.defineProperty(
-			newModel,
-			relationshipName,
-			{ value: relationshipData },
-		);
-
-		return newModel;
 	}
 }

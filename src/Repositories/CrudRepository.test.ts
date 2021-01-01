@@ -1,7 +1,7 @@
 import 'jasmine';
 import NotFoundError from '../Errors/NotFoundError';
 import TooManyResultsError from '../Errors/TooManyResultsError';
-import RelationshipNotFoundError from '../Errors/RelationshipNotFoundError';
+import DatabaseInterface from '../Databases/DatabaseInterface';
 import PgSqlDatabase from '../Databases/PgSqlDatabase';
 import CrudRepository from './CrudRepository';
 import SqlQuery from '../Queries/SqlQuery';
@@ -14,8 +14,8 @@ class TestModel {
 	public readonly number!: number;
 	public readonly date!: Date;
 
-	public readonly relatedTests?: RelatedTestModel[];
-	public readonly manyManyRelatedTests?: RelatedTestModel[];
+	public relatedTests?: ReadonlyArray<RelatedTestModel>;
+	public manyManyRelatedTests?: ReadonlyArray<RelatedTestModel>;
 
 	public propertyUnrelatedToTheTable?: boolean;
 }
@@ -24,36 +24,42 @@ class RelatedTestModel {
 	public readonly id!: number;
 	public readonly testId!: number;
 
-	public readonly test?: TestModel;
+	public test?: TestModel;
 }
 
 class TestRepository extends CrudRepository<TestModel> {
-	constructor(database: PgSqlDatabase) {
+	constructor(database: DatabaseInterface) {
 		super({
 			database,
 			table: 'Test',
 			primaryKey: 'id',
 			model: TestModel,
-			relationships: {
-				relatedTests: (test: TestModel) => (
-					(new RelatedTestRepository(database)).search(sql`"testId" = ${test.id}`)
-				),
-				manyManyRelatedTests: (test: TestModel) => (
-					(new RelatedTestRepository(database)).search(sql`
-						"id" IN (
-							SELECT "relatedTestId"
-							FROM "ManyManyTest"
-							WHERE "testId" = ${test.id}
-						)
-					`)
-				),
-			},
+		});
+	}
+
+	async loadRelatedTestsRelationship(test: TestModel): Promise<TestModel> {
+		return this.createModelFromAttributes({
+			...test,
+			relatedTests: await (new RelatedTestRepository(this.database)).search(sql`"testId" = ${test.id}`),
+		});
+	}
+
+	async loadManyManyRelatedTestsRelationship(test: TestModel) {
+		return this.createModelFromAttributes({
+			...test,
+			manyManyRelatedTests: await (new RelatedTestRepository(this.database)).search(sql`
+				"id" IN (
+					SELECT "relatedTestId"
+					FROM "ManyManyTest"
+					WHERE "testId" = ${test.id}
+				)
+			`),
 		});
 	}
 }
 
 class TestScopedRepository extends CrudRepository<TestModel> {
-	constructor(database: PgSqlDatabase) {
+	constructor(database: DatabaseInterface) {
 		super({
 			database,
 			table: 'Test',
@@ -65,17 +71,19 @@ class TestScopedRepository extends CrudRepository<TestModel> {
 }
 
 class RelatedTestRepository extends CrudRepository<RelatedTestModel> {
-	constructor(database: PgSqlDatabase) {
+	constructor(database: DatabaseInterface) {
 		super({
 			database,
 			table: 'RelatedTest',
 			primaryKey: 'id',
 			model: RelatedTestModel,
-			relationships: {
-				test: (relatedTest: RelatedTestModel) => (
-					(new TestRepository(database)).get(relatedTest.testId)
-				),
-			},
+		});
+	}
+
+	async loadTestRelationship(relatedTest: RelatedTestModel): Promise<RelatedTestModel> {
+		return this.createModelFromAttributes({
+			...relatedTest,
+			test: await (new TestRepository(this.database)).get(relatedTest.testId),
 		});
 	}
 }
@@ -381,7 +389,7 @@ describe('CrudRepository', () => {
 		await repository.delete(model);
 	});
 
-	it('loadRelationship - has one', async () => {
+	it('load relationship - has one', async () => {
 		await db.query(sql`
 			INSERT INTO "Test" VALUES (1, 'test 1', 11, DATE 'yesterday');
 			INSERT INTO "RelatedTest" VALUES (1, 1);
@@ -391,14 +399,14 @@ describe('CrudRepository', () => {
 		expect(relatedModel.testId).toBe(1);
 		expect(relatedModel.test).toBeUndefined();
 
-		const newRelatedModel = await relatedTestRepository.loadRelationship(relatedModel, 'test');
+		const newRelatedModel = await relatedTestRepository.loadTestRelationship(relatedModel);
 		expect(relatedModel.test).toBeUndefined();
 		expect(newRelatedModel.test).not.toBeUndefined();
 		expect(newRelatedModel.test).toBeInstanceOf(TestModel);
 		expect((<TestModel>newRelatedModel.test).id).toBe(1);
 	});
 
-	it('loadRelationship - has many', async () => {
+	it('load relationship - has many', async () => {
 		await db.query(sql`
 			INSERT INTO "Test" VALUES (1, 'test 1', 11, DATE 'yesterday');
 			INSERT INTO "Test" VALUES (2, 'test 2', 12, DATE 'today');
@@ -410,7 +418,7 @@ describe('CrudRepository', () => {
 		const model = await repository.get(1);
 		expect(model.relatedTests).toBeUndefined();
 
-		const newModel = await repository.loadRelationship(model, 'relatedTests');
+		const newModel = await repository.loadRelatedTestsRelationship(model);
 		expect(model.relatedTests).toBeUndefined();
 		expect(newModel.relatedTests).not.toBeUndefined();
 		expect(newModel.relatedTests).toBeInstanceOf(Array);
@@ -421,7 +429,7 @@ describe('CrudRepository', () => {
 		expect((<RelatedTestModel[]>newModel.relatedTests)[1].id).toEqual(2);
 	});
 
-	it('loadRelationship - many many', async () => {
+	it('load relationship - many many', async () => {
 		await db.query(sql`
 			INSERT INTO "Test" VALUES (1, 'test 1', 11, DATE 'yesterday');
 			INSERT INTO "Test" VALUES (2, 'test 2', 12, DATE 'today');
@@ -440,7 +448,7 @@ describe('CrudRepository', () => {
 		const model = await repository.get(1);
 		expect(model.manyManyRelatedTests).toBeUndefined();
 
-		const newModel = await repository.loadRelationship(model, 'manyManyRelatedTests');
+		const newModel = await repository.loadManyManyRelatedTestsRelationship(model);
 		expect(model.manyManyRelatedTests).toBeUndefined();
 		expect(newModel.manyManyRelatedTests).not.toBeUndefined();
 		expect(newModel.manyManyRelatedTests).toBeInstanceOf(Array);
@@ -449,15 +457,5 @@ describe('CrudRepository', () => {
 		expect((<RelatedTestModel[]>newModel.manyManyRelatedTests)[1]).toBeInstanceOf(RelatedTestModel);
 		expect((<RelatedTestModel[]>newModel.manyManyRelatedTests)[0].id).toEqual(1);
 		expect((<RelatedTestModel[]>newModel.manyManyRelatedTests)[1].id).toEqual(2);
-	});
-
-	it('loadRelationship - not found', async () => {
-		await db.query(sql`INSERT INTO "RelatedTest" VALUES (1, 1);`);
-
-		const model = await relatedTestRepository.get(1);
-
-		await expectAsync(
-			relatedTestRepository.loadRelationship(model, 'wrong_relationship')
-		).toBeRejectedWithError(RelationshipNotFoundError);
 	});
 });
