@@ -254,7 +254,7 @@ class UserModel {
     // [...]
     public readonly roleId!: number;
 
-    public readonly role?: RoleModel;
+    public role?: RoleModel;
 }
 
 class RoleRepository extends CrudRepository<RoleModel> {
@@ -262,12 +262,11 @@ class RoleRepository extends CrudRepository<RoleModel> {
 }
 
 class UserRepository extends CrudRepository<UserModel> {
-    constructor(database: PgSqlDatabase) {
-        super({
-            // [...]
-            relationships: {
-                role: (user: UserModel) => (new RoleRepository(database)).get(user.roleId),
-            },
+    // [...]
+    async loadRoleRelationship(user: UserModel): Promise<UserModel> {
+        return this.createModelFromAttributes({
+            ...user,
+            role: await (new RoleRepository(this.database)).get(user.roleId),
         });
     }
 }
@@ -275,7 +274,7 @@ class UserRepository extends CrudRepository<UserModel> {
 const repository = new UserRepository(database);
 let user = await repository.get(1);
 // Currently. user.role is `undefined`. You explicitly need to load it
-user = await repository.loadRelationship(user, 'role');
+user = await repository.loadRoleRelationship(user);
 // `user.role` is now populated with a `RoleModel`.
 ```
 
@@ -284,23 +283,22 @@ user = await repository.loadRelationship(user, 'role');
 ```typescript
 class RoleModel {
     // [...]
-    public readonly users?: UserModel[];
+    public users?: ReadonlyArray<UserModel>;
 }
 
 class RoleRepository extends CrudRepository<RoleModel> {
-    constructor(database: PgSqlDatabase) {
-        super({
-            // [...]
-            relationships: {
-                users: (role: RoleModel) => (new UserRepository(database)).search(sql`"roleId" = ${role.id}`),
-            },
+    // [...]
+    async loadUsersRelationship(role: RoleModel): Promise<RoleModel> {
+        return this.createModelFromAttributes({
+            ...role,
+            users: await (new UserRepository(this.database)).search(sql`"roleId" = ${role.id}`),
         });
     }
 }
 
 const repository = new RoleRepository(database);
 let role = await repository.get(1);
-role = await repository.loadRelationship(role, 'users');
+role = await repository.loadUsersRelationship(role);
 // role.users is now populated with an array of `UserModel`
 ```
 
@@ -309,56 +307,54 @@ role = await repository.loadRelationship(role, 'users');
 ```typescript
 class ArticleModel {
     // [...]
-    public readonly authors?: UserModel[];
+    public readonly authors?: ReadonlyArray<UserModel>;
 }
 
 class UserModel {
     // [...]
-    public readonly articles?: ArticleModel[];
+    public readonly articles?: ReadonlyArray<ArticleModel>;
 }
 
 class ArticleRepository extends CrudRepository<ArticleModel> {
-    constructor(database: PgSqlDatabase) {
-        super({
-            // [...]
-            relationships: {
-                authors: (article: ArticleModel) => (new UserRepository(database)).search(sql`
-                    "id" IN (
-                        SELECT "userId"
-                        FROM "ArticleAuthors"
-                        WHERE "articleId" = ${article.id}
-                    )
-                `),
-            },
+    // [...]
+    async loadAuthorsRelationship(article: ArticleModel): Promise<ArticleModel> {
+        return this.createModelFromAttributes({
+            ...article,
+            authors: await (new UserRepository(this.database)).search(sql`
+                "id" IN (
+                    SELECT "userId"
+                    FROM "ArticleAuthors"
+                    WHERE "articleId" = ${article.id}
+                )
+            `),
         });
     }
 }
 
 class UserRepository extends CrudRepository<UserModel> {
-    constructor(database: PgSqlDatabase) {
-        super({
-            // [...]
-            relationships: {
-                articles: (user: UserModel) => (new AuthorRepository(database)).search(sql`
-                    "id" IN (
-                        SELECT "articleId"
-                        FROM "ArticleAuthors"
-                        WHERE "userId" = ${user.id}
-                    )
-                `),
-            },
+    // [...]
+    async loadArticlesRelationship(user: UserModel): Promise<UserModel> {
+        return this.createModelFromAttributes({
+            ...user,
+            articles: await (new AuthorRepository(this.database)).search(sql`
+                "id" IN (
+                    SELECT "articleId"
+                    FROM "ArticleAuthors"
+                    WHERE "userId" = ${user.id}
+                )
+            `),
         });
     }
 }
 
 const repository = new UserRepository(database);
 let user = await repository.get(1);
-user = await repository.loadRelationship(user, 'articles');
+user = await repository.loadArticlesRelationship(user);
 // `user.articles` is now populated with an array of `ArticleModel`.
 
 const repository = new ArticleRepository(database);
 let article = await repository.get(1);
-article = await repository.loadRelationship(article, 'authors');
+article = await repository.loadAuthorsRelationship(article);
 // `user.authors` is now populated with an array of `UserModel`.
 ```
 
@@ -377,8 +373,8 @@ class UserRepository extends CrudRepository<UserModel> {
     // I don't recommend to do this because it will result in a lot of unnecessary queries...
     protected async createModelFromAttributes(attributes: any): Promise<UserModel> {
         const user = super.createModelFromAttributes(attributes);
-        await this.loadRelationship(user, 'role');
-        await this.loadRelationship(user, 'articles');
+        await this.loadRoleRelationship(user);
+        await this.loadArticlesRelationship(user);
         return user;
     }
 }
