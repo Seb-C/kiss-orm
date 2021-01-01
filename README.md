@@ -360,8 +360,75 @@ article = await repository.loadAuthorsRelationship(article);
 
 ## Eager loading for relationships
 
-Kiss-ORM only supports lazy-loading (on-demand).
-If you need something more complex, you should implement the queries specifically.
+Kiss-ORM also provides a halper function to achieve eager-loading easily (on-demand).
+
+### one-to-one
+
+```typescript
+class RoleModel {
+    // [...]
+}
+
+class UserModel {
+    // [...]
+    public readonly roleId!: number;
+
+    public role?: RoleModel;
+}
+
+class RoleRepository extends CrudRepository<RoleModel> {
+    // [...]
+}
+
+class UserRepository extends CrudRepository<UserModel> {
+    // [...]
+    async eagerLoadRoleRelationships(users: UserModel[]): Promise<UserModel[]> {
+        const roles = await (new RoleRepository(this.database)).search(sql`
+            "id" IN (${users.map(user => user.roleId)})
+        `);
+
+        return this.eagerLoadAttribute(users, 'role', user => (
+            roles.find(role => (role.id === user.roleId)) || null,
+        ));
+    }
+}
+
+const repository = new UserRepository(database);
+let users = await repository.search();
+users = await repository.eagerLoadRoleRelationships(users);
+// `users[x].role` are now populated with some `RoleModel`.
+```
+
+### one-to-many
+
+```typescript
+class RoleModel {
+    // [...]
+    public users?: ReadonlyArray<UserModel>;
+}
+
+class RoleRepository extends CrudRepository<RoleModel> {
+    // [...]
+    async eagerLoadUsersRelationships(roles: RoleModel[]): Promise<RoleModel[]> {
+        const users = await (new UserRepository(this.database)).search(sql`
+            "roleId" IN (${roles.map(role => role.id)})
+        `);
+
+        return this.eagerLoadAttribute(roles, 'users', role => (
+            users.filter(user => (user.roleId === role.id))
+        ));
+    }
+}
+
+const repository = new RoleRepository(database);
+let roles = await repository.search();
+roles = await repository.eagerLoadUsersRelationships(roles);
+// roles[x].users are now all populated with arrays of `UserModel`
+```
+
+### many-to-many
+
+TODO (not possible?)
 
 ## Autoloading relationships
 

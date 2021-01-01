@@ -172,30 +172,17 @@ export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType
 		return model;
 	}
 
-	public async eagerLoadRelationship(
-		inModels: Model[],
-		relationshipName: string,
+	public async eagerLoadAttribute(
+		models: Model[],
+		attribute: string,
+		getAttributeValueFor: ((model: Model) => any),
 	): Promise<Model[]> {
-		// TODO should be input
-		const foreignKey: string = 'userId';
-		const otherRepository: CrudRepository<Model, ValidAttributes, PrimaryKeyType> = this;
-
-		// TODO make unique
-		const idsToLoad = inModels.map(model => (<any>model)[this.primaryKey]);
-		const resultModels = await otherRepository.search(sql`
-			${new QueryIdentifier(foreignKey)} IN (${
-				SqlQuery.join(idsToLoad, sql`, `)
-			})
-		`);
-
 		return Promise.all(
-			inModels.map(
+			models.map(
 				async (model: Model): Promise<Model> => {
 					return this.createModelFromAttributes({
 						...model,
-						[relationshipName]: resultModels.filter(
-							resultModel => (<any>resultModel)[foreignKey] === (<any>model)[this.primaryKey],
-						),
+						[attribute]: getAttributeValueFor(model),
 					});
 				},
 			),
