@@ -26,7 +26,11 @@ services:
     depends_on:
       - pgsql
       - mysql
-    command: npx ts-node ./node_modules/jasmine/bin/jasmine --config=jasmine.json
+    command: |
+      /bin/sh -c "
+        until nc -z -v -w1 mysql 3306; do sleep 1; done
+        npx ts-node ./node_modules/jasmine/bin/jasmine --config=jasmine.json
+      "
     volumes:
       - $PWD:/kiss-orm
 volumes:
