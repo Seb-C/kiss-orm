@@ -36,7 +36,8 @@ Kiss-ORM is a new, very opinionated ORM for TypeScript. Here is a description of
 
 Kiss-ORM is compatible with the following databases:
 - PostgreSQL, via the `pg`, `pg-format` and `pg-pool` packages that you need to install
-- MySQL, via the `mysql` package that you need to install
+- MySQL, via the `mysql` package that you need to install (experimental support)
+- SQLite, via the `sqlite` package that you need to install (experimental support)
 
 ## Basics
 
@@ -436,3 +437,5 @@ await database.sequence(async sequenceDb => {
     await sequenceDb.query(sql`COMMIT;`);
 });
 ```
+
+Note: On SQLite, the `sequence` function does not give the same guarantees. Since SQLite is local and runs with a single process without a pool of connections, this function is just a wrapper for `serialize`.
