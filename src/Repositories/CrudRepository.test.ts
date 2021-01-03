@@ -1,10 +1,13 @@
 import 'jasmine';
 import NotFoundError from '../Errors/NotFoundError';
 import TooManyResultsError from '../Errors/TooManyResultsError';
-import RelationshipNotFoundError from '../Errors/RelationshipNotFoundError';
+import DatabaseInterface from '../Databases/DatabaseInterface';
 import PgSqlDatabase from '../Databases/PgSqlDatabase';
+import MySqlDatabase from '../Databases/MySqlDatabase';
+import SqliteDatabase from '../Databases/SqliteDatabase';
 import CrudRepository from './CrudRepository';
 import SqlQuery from '../Queries/SqlQuery';
+import QueryIdentifier from '../Queries/QueryIdentifier';
 
 const sql = SqlQuery.createFromTemplateString;
 
@@ -14,8 +17,8 @@ class TestModel {
 	public readonly number!: number;
 	public readonly date!: Date;
 
-	public readonly relatedTests?: RelatedTestModel[];
-	public readonly manyManyRelatedTests?: RelatedTestModel[];
+	public relatedTests?: ReadonlyArray<RelatedTestModel>;
+	public manyManyRelatedTests?: ReadonlyArray<RelatedTestModel>;
 
 	public propertyUnrelatedToTheTable?: boolean;
 }
@@ -24,39 +27,47 @@ class RelatedTestModel {
 	public readonly id!: number;
 	public readonly testId!: number;
 
-	public readonly test?: TestModel;
+	public test?: TestModel;
 }
 
 class TestRepository extends CrudRepository<TestModel> {
-	constructor(database: PgSqlDatabase) {
+	constructor(database: DatabaseInterface) {
 		super({
 			database,
 			table: 'Test',
 			primaryKey: 'id',
 			model: TestModel,
-			relationships: {
-				relatedTests: (test: TestModel) => (
-					(new RelatedTestRepository(database)).search(sql`"testId" = ${test.id}`)
-				),
-				manyManyRelatedTests: (test: TestModel) => (
-					(new RelatedTestRepository(database)).search(sql`
-						"id" IN (
-							SELECT "relatedTestId"
-							FROM "ManyManyTest"
-							WHERE "testId" = ${test.id}
-						)
-					`)
-				),
-			},
+		});
+	}
+
+	async loadRelatedTestsRelationship(test: TestModel): Promise<TestModel> {
+		return this.createModelFromAttributes({
+			...test,
+			relatedTests: await (new RelatedTestRepository(this.database)).search(sql`
+				${new QueryIdentifier('testId')} = ${test.id}
+			`),
+		});
+	}
+
+	async loadManyManyRelatedTestsRelationship(test: TestModel) {
+		return this.createModelFromAttributes({
+			...test,
+			manyManyRelatedTests: await (new RelatedTestRepository(this.database)).search(sql`
+				${new QueryIdentifier('id')} IN (
+					SELECT ${new QueryIdentifier('relatedTestId')}
+					FROM ${new QueryIdentifier('ManyManyTest')}
+					WHERE ${new QueryIdentifier('testId')} = ${test.id}
+				)
+			`),
 		});
 	}
 }
 
 class TestScopedRepository extends CrudRepository<TestModel> {
-	constructor(database: PgSqlDatabase) {
+	constructor(database: DatabaseInterface) {
 		super({
 			database,
-			table: 'Test',
+			table: 'TestWithDuplicates',
 			primaryKey: 'id',
 			model: TestModel,
 			scope: sql`number = 42`,
@@ -65,369 +76,413 @@ class TestScopedRepository extends CrudRepository<TestModel> {
 }
 
 class RelatedTestRepository extends CrudRepository<RelatedTestModel> {
-	constructor(database: PgSqlDatabase) {
+	constructor(database: DatabaseInterface) {
 		super({
 			database,
 			table: 'RelatedTest',
 			primaryKey: 'id',
 			model: RelatedTestModel,
-			relationships: {
-				test: (relatedTest: RelatedTestModel) => (
-					(new TestRepository(database)).get(relatedTest.testId)
-				),
-			},
+		});
+	}
+
+	async loadTestRelationship(relatedTest: RelatedTestModel): Promise<RelatedTestModel> {
+		return this.createModelFromAttributes({
+			...relatedTest,
+			test: await (new TestRepository(this.database)).get(relatedTest.testId),
 		});
 	}
 }
 
-describe('CrudRepository', () => {
-	let db: PgSqlDatabase;
-	let repository: TestRepository;
-	let scopedRepository: TestScopedRepository;
-	let relatedTestRepository: RelatedTestRepository;
-
-	beforeAll(async () => {
-		db = new PgSqlDatabase({
-			host: 'database',
-			port: 5432,
-			database: 'test',
-			user: 'test',
-			password: 'test'
+class TestWithDuplicatesRepository extends CrudRepository<TestModel> {
+	constructor(database: DatabaseInterface) {
+		super({
+			database,
+			table: 'TestWithDuplicates',
+			primaryKey: 'id',
+			model: TestModel,
 		});
-	});
-	afterAll(async () => {
-		await db.disconnect();
-	});
+	}
+}
 
-	beforeEach(async () => {
-		await db.query(sql`
-			CREATE TEMPORARY TABLE "Test" (
-				"id" INTEGER NOT NULL,
-				"text" TEXT NOT NULL,
-				"number" INTEGER NOT NULL,
-				"date" DATE NOT NULL
-			);
+// Instead of mocking everything, I chose to test the repository directly against real databases.
+// This offers a better coverage for any database differences.
+describe('CrudRepository - PgSqlDatabase', getTestForRepositoryWithDatabase(PgSqlDatabase, {
+	host: 'pgsql',
+	port: 5432,
+	database: 'test',
+	user: 'test',
+	password: 'test'
+}, sql``));
+describe('CrudRepository - MySqlDatabase', getTestForRepositoryWithDatabase(MySqlDatabase, {
+	host: 'mysql',
+	database: 'test',
+	user: 'test',
+	password: 'test',
+}, sql`PRIMARY KEY AUTO_INCREMENT`));
+describe('CrudRepository - SqliteDatabase', getTestForRepositoryWithDatabase(SqliteDatabase, {
+	filename: ':memory:',
+}, sql`PRIMARY KEY AUTOINCREMENT`));
 
-			CREATE TEMPORARY TABLE "RelatedTest" (
-				"id" INTEGER NOT NULL,
-				"testId" INTEGER NOT NULL
-			);
+function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, primaryKeyAttributes: SqlQuery) {
+	return () => {
+		let db: DatabaseInterface;
+		let repository: TestRepository;
+		let scopedRepository: TestScopedRepository;
+		let relatedTestRepository: RelatedTestRepository;
+		let repositoryWithDuplicates: TestWithDuplicatesRepository;
 
-			CREATE TEMPORARY TABLE "ManyManyTest" (
-				"testId" INTEGER NOT NULL,
-				"relatedTestId" INTEGER NOT NULL
-			);
-		`);
+		beforeEach(async () => {
+			db = new DatabaseClass(config);
 
-		repository = new TestRepository(db);
-		scopedRepository = new TestScopedRepository(db);
-		relatedTestRepository = new RelatedTestRepository(db);
-	});
-	afterEach(async () => {
-		await db.query(sql`DROP TABLE "Test";`);
-		await db.query(sql`DROP TABLE "RelatedTest";`);
-		await db.query(sql`DROP TABLE "ManyManyTest";`);
-	});
+			await db.query(sql`
+				CREATE TEMPORARY TABLE ${new QueryIdentifier('Test')} (
+					${new QueryIdentifier('id')} INTEGER NOT NULL ${primaryKeyAttributes},
+					${new QueryIdentifier('text')} TEXT NOT NULL,
+					${new QueryIdentifier('number')} INTEGER NOT NULL,
+					${new QueryIdentifier('date')} DATE NOT NULL
+				);
+			`);
+			await db.query(sql`
+				CREATE TEMPORARY TABLE ${new QueryIdentifier('RelatedTest')} (
+					${new QueryIdentifier('id')} INTEGER NOT NULL ${primaryKeyAttributes},
+					${new QueryIdentifier('testId')} INTEGER NOT NULL
+				);
+			`);
+			await db.query(sql`
+				CREATE TEMPORARY TABLE ${new QueryIdentifier('ManyManyTest')} (
+					${new QueryIdentifier('testId')} INTEGER NOT NULL,
+					${new QueryIdentifier('relatedTestId')} INTEGER NOT NULL
+				);
+			`);
+			await db.query(sql`
+				CREATE TEMPORARY TABLE ${new QueryIdentifier('TestWithDuplicates')} (
+					${new QueryIdentifier('id')} INTEGER NOT NULL,
+					${new QueryIdentifier('text')} TEXT NOT NULL,
+					${new QueryIdentifier('number')} INTEGER NOT NULL,
+					${new QueryIdentifier('date')} DATE NOT NULL
+				);
+			`);
 
-	it('get - normal case', async () => {
-		await db.query(sql`
-			INSERT INTO "Test" VALUES
-				(1, 'test 1', 11, DATE 'yesterday'),
-				(2, 'test 2', 12, DATE 'tomorrow');
-		`);
-
-		const result = await repository.get(2);
-		expect(result).toBeInstanceOf(TestModel);
-		expect(result.id).toEqual(2);
-		expect(result.text).toEqual('test 2');
-		expect(result.number).toEqual(12);
-		expect(result.date).toBeInstanceOf(Date);
-	});
-	it('get - not found case', async () => {
-		await expectAsync(repository.get(1)).toBeRejectedWithError(NotFoundError);
-	});
-	it('get - too many results case', async () => {
-		await db.query(sql`
-			INSERT INTO "Test" VALUES
-				(1, 'test 1', 11, DATE 'yesterday'),
-				(1, 'test 1', 11, DATE 'yesterday');
-		`);
-
-		await expectAsync(repository.get(1)).toBeRejectedWithError(TooManyResultsError);
-	});
-
-	it('get - scoped case', async () => {
-		await db.query(sql`
-			INSERT INTO "Test" VALUES
-				(1, 'test 1', 42, DATE 'yesterday'),
-				(1, 'test 2', 12, DATE 'tomorrow');
-		`);
-
-		const result = await scopedRepository.get(1);
-		expect(result.text).toEqual('test 1');
-	});
-	it('get - not found in scope case', async () => {
-		await db.query(sql`INSERT INTO "Test" VALUES (1, 'test 2', 12, DATE 'tomorrow');`);
-
-		await expectAsync(scopedRepository.get(1)).toBeRejectedWithError(NotFoundError);
-	});
-
-	it('search - normal case without filters', async () => {
-		await db.query(sql`
-			INSERT INTO "Test" VALUES
-				(1, 'test 1', 11, DATE 'yesterday'),
-				(2, 'test 2', 12, DATE 'tomorrow');
-		`);
-
-		const results = await repository.search();
-		expect(results.length).toEqual(2);
-
-		expect(results[0]).toBeInstanceOf(TestModel);
-		expect(results[0].id).toEqual(1);
-		expect(results[0].text).toEqual('test 1');
-		expect(results[0].number).toEqual(11);
-		expect(results[0].date).toBeInstanceOf(Date);
-
-		expect(results[1]).toBeInstanceOf(TestModel);
-		expect(results[1].id).toEqual(2);
-		expect(results[1].text).toEqual('test 2');
-		expect(results[1].number).toEqual(12);
-		expect(results[1].date).toBeInstanceOf(Date);
-	});
-	it('search - no results case', async () => {
-		const results = await repository.search();
-		expect(results.length).toEqual(0);
-	});
-	it('search - with a filter', async () => {
-		await db.query(sql`
-			INSERT INTO "Test" VALUES
-				(1, 'test 1', 11, DATE 'yesterday'),
-				(2, 'test 2', 12, DATE 'tomorrow'),
-				(3, 'test 3', 13, DATE 'today');
-		`);
-
-		const results = await repository.search(sql`number > 11 AND text LIKE '%2'`);
-		expect(results.length).toEqual(1);
-		expect(results[0].id).toEqual(2);
-	});
-	it('search - with an order', async () => {
-		await db.query(sql`
-			INSERT INTO "Test" VALUES
-				(1, 'test 1', 11, DATE 'yesterday'),
-				(2, 'test 2', 12, DATE 'tomorrow');
-		`);
-
-		const results = await repository.search(null, sql`number DESC`);
-		expect(results.length).toEqual(2);
-		expect(results[0].id).toEqual(2);
-		expect(results[1].id).toEqual(1);
-	});
-	it('search - with a filter and order', async () => {
-		await db.query(sql`
-			INSERT INTO "Test" VALUES
-				(1, 'test 1', 11, DATE 'yesterday'),
-				(2, 'test 2', 12, DATE 'tomorrow'),
-				(3, 'test 3', 13, DATE 'today');
-		`);
-
-		const results = await repository.search(sql`number > 11`, sql`number DESC`);
-		expect(results.length).toEqual(2);
-		expect(results[0].id).toEqual(3);
-		expect(results[1].id).toEqual(2);
-	});
-	it('search - scoped', async () => {
-		await db.query(sql`
-			INSERT INTO "Test" VALUES
-				(1, 'test 1', 42, DATE 'yesterday'),
-				(2, 'test 2', 42, DATE 'tomorrow'),
-				(3, 'test 3', 13, DATE 'today');
-		`);
-
-		const results = await scopedRepository.search();
-		expect(results.length).toEqual(2);
-		expect(results[0].id).toEqual(1);
-		expect(results[1].id).toEqual(2);
-	});
-	it('search - scoped and filtered', async () => {
-		await db.query(sql`
-			INSERT INTO "Test" VALUES
-				(1, 'test 1', 42, DATE 'yesterday'),
-				(2, 'test 2', 42, DATE 'tomorrow'),
-				(3, 'test 3', 13, DATE 'today');
-		`);
-
-		const results = await scopedRepository.search(sql`text = 'test 2'`);
-		expect(results.length).toEqual(1);
-		expect(results[0].id).toEqual(2);
-	});
-
-	it('create - normal case', async () => {
-		const result = await repository.create({
-			id: 2,
-			text: 'test 2',
-			number: 12,
-			date: new Date(),
+			repository = new TestRepository(db);
+			scopedRepository = new TestScopedRepository(db);
+			relatedTestRepository = new RelatedTestRepository(db);
+			repositoryWithDuplicates = new TestWithDuplicatesRepository(db);
 		});
-		expect(result).toBeInstanceOf(TestModel);
-		expect(result.id).toEqual(2);
-		expect(result.text).toEqual('test 2');
-		expect(result.number).toEqual(12);
-		expect(result.date).toBeInstanceOf(Date);
-	});
-
-	it('update - normal case', async () => {
-		await db.query(sql`INSERT INTO "Test" VALUES (1, 'test 1', 11, DATE 'yesterday');`);
-		const model = new TestModel();
-		Object.assign(model, {
-			id: 1,
-			text: 'test 1',
-			number: 11,
-			date: new Date(),
+		afterEach(async () => {
+			await db.query(sql`DROP TABLE ${new QueryIdentifier('Test')};`);
+			await db.query(sql`DROP TABLE ${new QueryIdentifier('RelatedTest')};`);
+			await db.query(sql`DROP TABLE ${new QueryIdentifier('ManyManyTest')};`);
+			await db.query(sql`DROP TABLE ${new QueryIdentifier('TestWithDuplicates')};`);
+			await db.disconnect();
 		});
 
-		const result = await repository.update(model, {
-			text: 'test 2',
+		it('get - normal case', async () => {
+			await db.query(sql`
+				INSERT INTO ${new QueryIdentifier('Test')} VALUES
+					(1, 'test 1', 11, DATE('2020-01-01')),
+					(2, 'test 2', 12, DATE('2020-01-03'));
+			`);
+
+			const result = await repository.get(2);
+			expect(result).toBeInstanceOf(TestModel);
+			expect(result.id).toEqual(2);
+			expect(result.text).toEqual('test 2');
+			expect(result.number).toEqual(12);
+			if (DatabaseClass === SqliteDatabase) {
+				// We used the DATE function so SQLite stores a string
+				expect(result.date).toBeInstanceOf(String);
+			} else {
+				expect(result.date).toBeInstanceOf(Date);
+			}
+		});
+		it('get - not found case', async () => {
+			await expectAsync(repository.get(1)).toBeRejectedWithError(NotFoundError);
+		});
+		it('get - too many results case', async () => {
+			await db.query(sql`
+				INSERT INTO ${new QueryIdentifier('TestWithDuplicates')} VALUES
+					(1, 'test 1', 11, DATE('2020-01-01')),
+					(1, 'test 2', 12, DATE('2020-01-01'));
+			`);
+
+			await expectAsync(repositoryWithDuplicates.get(1)).toBeRejectedWithError(TooManyResultsError);
 		});
 
-		expect(result).toBeInstanceOf(TestModel);
-		expect(result.id).toEqual(1);
-		expect(result.text).toEqual('test 2');
-		expect(result.number).toEqual(11);
-	});
-	it('update - not found case', async () => {
-		const model = new TestModel();
-		Object.assign(model, {
-			id: 1,
-			text: 'test 1',
-			number: 11,
-			date: new Date(),
+		it('get - scoped case', async () => {
+			await db.query(sql`
+				INSERT INTO ${new QueryIdentifier('TestWithDuplicates')} VALUES
+					(1, 'test 1', 42, DATE('2020-01-01')),
+					(1, 'test 2', 43, DATE('2020-01-01'));
+			`);
+
+			const result = await scopedRepository.get(1);
+			expect(result.text).toEqual('test 1');
+		});
+		it('get - not found in scope case', async () => {
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('TestWithDuplicates')} VALUES (1, 'test 2', 12, DATE('2020-01-01'));`);
+
+			await expectAsync(scopedRepository.get(1)).toBeRejectedWithError(NotFoundError);
 		});
 
-		await expectAsync(
-			repository.update(model, { text: 'test 2' })
-		).toBeRejectedWithError(NotFoundError);
-	});
-	it('update - too many results case', async () => {
-		await db.query(sql`
-			INSERT INTO "Test" VALUES
-				(1, 'test 1', 11, DATE 'yesterday'),
-				(1, 'test 1', 11, DATE 'yesterday');
-		`);
+		it('search - normal case without filters', async () => {
+			await db.query(sql`
+				INSERT INTO ${new QueryIdentifier('Test')} VALUES
+					(1, 'test 1', 11, DATE('2020-01-01')),
+					(2, 'test 2', 12, DATE('2020-01-03'));
+			`);
 
-		const model = new TestModel();
-		Object.assign(model, {
-			id: 1,
-			text: 'test 1',
-			number: 11,
-			date: new Date(),
+			const results = await repository.search();
+			expect(results.length).toEqual(2);
+
+			expect(results[0]).toBeInstanceOf(TestModel);
+			expect(results[0].id).toEqual(1);
+			expect(results[0].text).toEqual('test 1');
+			expect(results[0].number).toEqual(11);
+			if (DatabaseClass === SqliteDatabase) {
+				// We used the DATE function so SQLite stores a string
+				expect(results[0].date).toBeInstanceOf(String);
+			} else {
+				expect(results[0].date).toBeInstanceOf(Date);
+			}
+
+			expect(results[1]).toBeInstanceOf(TestModel);
+			expect(results[1].id).toEqual(2);
+			expect(results[1].text).toEqual('test 2');
+			expect(results[1].number).toEqual(12);
+			if (DatabaseClass === SqliteDatabase) {
+				// We used the DATE function so SQLite stores a string
+				expect(results[1].date).toBeInstanceOf(String);
+			} else {
+				expect(results[1].date).toBeInstanceOf(Date);
+			}
+		});
+		it('search - no results case', async () => {
+			const results = await repository.search();
+			expect(results.length).toEqual(0);
+		});
+		it('search - with a filter', async () => {
+			await db.query(sql`
+				INSERT INTO ${new QueryIdentifier('Test')} VALUES
+					(1, 'test 1', 11, DATE('2020-01-01')),
+					(2, 'test 2', 12, DATE('2020-01-03')),
+					(3, 'test 3', 13, DATE('2020-01-02'));
+			`);
+
+			const results = await repository.search(sql`number > 11 AND text LIKE '%2'`);
+			expect(results.length).toEqual(1);
+			expect(results[0].id).toEqual(2);
+		});
+		it('search - with an order', async () => {
+			await db.query(sql`
+				INSERT INTO ${new QueryIdentifier('Test')} VALUES
+					(1, 'test 1', 11, ('2020-01-01')),
+					(2, 'test 2', 12, ('2020-01-03'));
+			`);
+
+			const results = await repository.search(null, sql`number DESC`);
+			expect(results.length).toEqual(2);
+			expect(results[0].id).toEqual(2);
+			expect(results[1].id).toEqual(1);
+		});
+		it('search - with a filter and order', async () => {
+			await db.query(sql`
+				INSERT INTO ${new QueryIdentifier('Test')} VALUES
+					(1, 'test 1', 11, DATE('2020-01-01')),
+					(2, 'test 2', 12, DATE('2020-01-03')),
+					(3, 'test 3', 13, DATE('2020-01-02'));
+			`);
+
+			const results = await repository.search(sql`number > 11`, sql`number DESC`);
+			expect(results.length).toEqual(2);
+			expect(results[0].id).toEqual(3);
+			expect(results[1].id).toEqual(2);
+		});
+		it('search - scoped', async () => {
+			await db.query(sql`
+				INSERT INTO ${new QueryIdentifier('TestWithDuplicates')} VALUES
+					(1, 'test 1', 42, DATE('2020-01-01')),
+					(2, 'test 2', 42, DATE('2020-01-01')),
+					(3, 'test 3', 13, DATE('2020-01-01'));
+			`);
+
+			const results = await scopedRepository.search();
+			expect(results.length).toEqual(2);
+			expect(results[0].id).toEqual(1);
+			expect(results[1].id).toEqual(2);
+		});
+		it('search - scoped and filtered', async () => {
+			await db.query(sql`
+				INSERT INTO ${new QueryIdentifier('TestWithDuplicates')} VALUES
+					(1, 'test 1', 42, DATE('2020-01-01')),
+					(2, 'test 2', 42, DATE('2020-01-01')),
+					(3, 'test 3', 13, DATE('2020-01-01'));
+			`);
+
+			const results = await scopedRepository.search(sql`text = 'test 2'`);
+			expect(results.length).toEqual(1);
+			expect(results[0].id).toEqual(2);
 		});
 
-		await expectAsync(
-			repository.update(model, { text: 'test 2' })
-		).toBeRejectedWithError(TooManyResultsError);
-	});
-	it('update - should not affect unrelated properties', async () => {
-		await db.query(sql`INSERT INTO "Test" VALUES (1, 'test 1', 11, DATE 'yesterday');`);
-		const model = await repository.get(1);
-		model.propertyUnrelatedToTheTable = true;
-
-		const result = await repository.update(model, {
-			text: 'test 2',
+		it('create - normal case', async () => {
+			const result = await repository.create({
+				id: 2,
+				text: 'test 2',
+				number: 12,
+				date: new Date(),
+			});
+			expect(result).toBeInstanceOf(TestModel);
+			expect(result.id).toEqual(2);
+			expect(result.text).toEqual('test 2');
+			expect(result.number).toEqual(12);
+			if (DatabaseClass === SqliteDatabase) {
+				// We used a Date object so SQLite stores a number this time
+				expect(result.date).toBeInstanceOf(Number);
+			} else {
+				expect(result.date).toBeInstanceOf(Date);
+			}
 		});
 
-		expect(result.propertyUnrelatedToTheTable).toEqual(true);
-	});
+		it('update - normal case', async () => {
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE('2020-01-01'));`);
+			const model = new TestModel();
+			Object.assign(model, {
+				id: 1,
+				text: 'test 1',
+				number: 11,
+				date: new Date(),
+			});
 
-	it('delete - normal case', async () => {
-		await db.query(sql`INSERT INTO "Test" VALUES (1, 'test 1', 11, DATE 'yesterday');`);
-		const model = new TestModel();
-		Object.assign(model, {
-			id: 1,
-			text: 'test 1',
-			number: 11,
-			date: new Date(),
+			const result = await repository.update(model, {
+				text: 'test 2',
+			});
+
+			expect(result).toBeInstanceOf(TestModel);
+			expect(result.id).toEqual(1);
+			expect(result.text).toEqual('test 2');
+			expect(result.number).toEqual(11);
+		});
+		it('update - not found case', async () => {
+			const model = new TestModel();
+			Object.assign(model, {
+				id: 1,
+				text: 'test 1',
+				number: 11,
+				date: new Date(),
+			});
+
+			await expectAsync(
+				repository.update(model, { text: 'test 2' })
+			).toBeRejectedWithError(NotFoundError);
+		});
+		if (DatabaseClass === PgSqlDatabase) {
+			// Only PgSql has this exception, cannot emulate it with the other engines
+			it('update - too many results case', async () => {
+				await db.query(sql`
+					INSERT INTO ${new QueryIdentifier('TestWithDuplicates')} VALUES
+						(1, 'test 1', 11, DATE('2020-01-01')),
+						(1, 'test 1', 11, DATE('2020-01-01'));
+				`);
+
+				const model = new TestModel();
+				Object.assign(model, {
+					id: 1,
+					text: 'test 1',
+					number: 11,
+					date: new Date(),
+				});
+
+				await expectAsync(
+					repositoryWithDuplicates.update(model, { text: 'test 2' })
+				).toBeRejectedWithError(TooManyResultsError);
+			});
+		}
+		it('update - should not affect unrelated properties', async () => {
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE('2020-01-01'));`);
+			const model = await repository.get(1);
+			model.propertyUnrelatedToTheTable = true;
+
+			const result = await repository.update(model, {
+				text: 'test 2',
+			});
+
+			expect(result.propertyUnrelatedToTheTable).toEqual(true);
 		});
 
-		await repository.delete(model);
-	});
+		it('delete - normal case', async () => {
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE('2020-01-01'));`);
+			const model = new TestModel();
+			Object.assign(model, {
+				id: 1,
+				text: 'test 1',
+				number: 11,
+				date: new Date(),
+			});
 
-	it('loadRelationship - has one', async () => {
-		await db.query(sql`
-			INSERT INTO "Test" VALUES (1, 'test 1', 11, DATE 'yesterday');
-			INSERT INTO "RelatedTest" VALUES (1, 1);
-		`);
+			await repository.delete(model);
+		});
 
-		const relatedModel = await relatedTestRepository.get(1);
-		expect(relatedModel.testId).toBe(1);
-		expect(relatedModel.test).toBeUndefined();
+		it('load relationship - has one', async () => {
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE('2020-01-01'));`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('RelatedTest')} VALUES (1, 1);`);
 
-		const newRelatedModel = await relatedTestRepository.loadRelationship(relatedModel, 'test');
-		expect(relatedModel.test).toBeUndefined();
-		expect(newRelatedModel.test).not.toBeUndefined();
-		expect(newRelatedModel.test).toBeInstanceOf(TestModel);
-		expect((<TestModel>newRelatedModel.test).id).toBe(1);
-	});
+			const relatedModel = await relatedTestRepository.get(1);
+			expect(relatedModel.testId).toBe(1);
+			expect(relatedModel.test).toBeUndefined();
 
-	it('loadRelationship - has many', async () => {
-		await db.query(sql`
-			INSERT INTO "Test" VALUES (1, 'test 1', 11, DATE 'yesterday');
-			INSERT INTO "Test" VALUES (2, 'test 2', 12, DATE 'today');
-			INSERT INTO "RelatedTest" VALUES (1, 1);
-			INSERT INTO "RelatedTest" VALUES (2, 1);
-			INSERT INTO "RelatedTest" VALUES (2, 2);
-		`);
+			const newRelatedModel = await relatedTestRepository.loadTestRelationship(relatedModel);
+			expect(relatedModel.test).toBeUndefined();
+			expect(newRelatedModel.test).not.toBeUndefined();
+			expect(newRelatedModel.test).toBeInstanceOf(TestModel);
+			expect((<TestModel>newRelatedModel.test).id).toBe(1);
+		});
 
-		const model = await repository.get(1);
-		expect(model.relatedTests).toBeUndefined();
+		it('load relationship - has many', async () => {
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE('2020-01-01'));`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (2, 'test 2', 12, DATE('2020-01-02'));`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('RelatedTest')} VALUES (1, 1);`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('RelatedTest')} VALUES (2, 1);`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('RelatedTest')} VALUES (3, 2);`);
 
-		const newModel = await repository.loadRelationship(model, 'relatedTests');
-		expect(model.relatedTests).toBeUndefined();
-		expect(newModel.relatedTests).not.toBeUndefined();
-		expect(newModel.relatedTests).toBeInstanceOf(Array);
-		expect((<RelatedTestModel[]>newModel.relatedTests).length).toEqual(2);
-		expect((<RelatedTestModel[]>newModel.relatedTests)[0]).toBeInstanceOf(RelatedTestModel);
-		expect((<RelatedTestModel[]>newModel.relatedTests)[1]).toBeInstanceOf(RelatedTestModel);
-		expect((<RelatedTestModel[]>newModel.relatedTests)[0].id).toEqual(1);
-		expect((<RelatedTestModel[]>newModel.relatedTests)[1].id).toEqual(2);
-	});
+			const model = await repository.get(1);
+			expect(model.relatedTests).toBeUndefined();
 
-	it('loadRelationship - many many', async () => {
-		await db.query(sql`
-			INSERT INTO "Test" VALUES (1, 'test 1', 11, DATE 'yesterday');
-			INSERT INTO "Test" VALUES (2, 'test 2', 12, DATE 'today');
+			const newModel = await repository.loadRelatedTestsRelationship(model);
+			expect(model.relatedTests).toBeUndefined();
+			expect(newModel.relatedTests).not.toBeUndefined();
+			expect(newModel.relatedTests).toBeInstanceOf(Array);
+			expect((<RelatedTestModel[]>newModel.relatedTests).length).toEqual(2);
+			expect((<RelatedTestModel[]>newModel.relatedTests)[0]).toBeInstanceOf(RelatedTestModel);
+			expect((<RelatedTestModel[]>newModel.relatedTests)[1]).toBeInstanceOf(RelatedTestModel);
+			expect((<RelatedTestModel[]>newModel.relatedTests)[0].id).toEqual(1);
+			expect((<RelatedTestModel[]>newModel.relatedTests)[1].id).toEqual(2);
+		});
 
-			INSERT INTO "RelatedTest" VALUES (1, 1);
-			INSERT INTO "RelatedTest" VALUES (2, 1);
-			INSERT INTO "RelatedTest" VALUES (3, 2);
+		it('load relationship - many many', async () => {
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE('2020-01-01'));`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (2, 'test 2', 12, DATE('2020-01-02'));`);
 
-			INSERT INTO "ManyManyTest" VALUES (1, 1);
-			INSERT INTO "ManyManyTest" VALUES (1, 2);
-			INSERT INTO "ManyManyTest" VALUES (2, 1);
-			INSERT INTO "ManyManyTest" VALUES (2, 2);
-			INSERT INTO "ManyManyTest" VALUES (2, 3);
-		`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('RelatedTest')} VALUES (1, 1);`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('RelatedTest')} VALUES (2, 1);`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('RelatedTest')} VALUES (3, 2);`);
 
-		const model = await repository.get(1);
-		expect(model.manyManyRelatedTests).toBeUndefined();
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('ManyManyTest')} VALUES (1, 1);`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('ManyManyTest')} VALUES (1, 2);`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('ManyManyTest')} VALUES (2, 1);`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('ManyManyTest')} VALUES (2, 2);`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('ManyManyTest')} VALUES (2, 3);`);
 
-		const newModel = await repository.loadRelationship(model, 'manyManyRelatedTests');
-		expect(model.manyManyRelatedTests).toBeUndefined();
-		expect(newModel.manyManyRelatedTests).not.toBeUndefined();
-		expect(newModel.manyManyRelatedTests).toBeInstanceOf(Array);
-		expect((<RelatedTestModel[]>newModel.manyManyRelatedTests).length).toEqual(2);
-		expect((<RelatedTestModel[]>newModel.manyManyRelatedTests)[0]).toBeInstanceOf(RelatedTestModel);
-		expect((<RelatedTestModel[]>newModel.manyManyRelatedTests)[1]).toBeInstanceOf(RelatedTestModel);
-		expect((<RelatedTestModel[]>newModel.manyManyRelatedTests)[0].id).toEqual(1);
-		expect((<RelatedTestModel[]>newModel.manyManyRelatedTests)[1].id).toEqual(2);
-	});
+			const model = await repository.get(1);
+			expect(model.manyManyRelatedTests).toBeUndefined();
 
-	it('loadRelationship - not found', async () => {
-		await db.query(sql`INSERT INTO "RelatedTest" VALUES (1, 1);`);
-
-		const model = await relatedTestRepository.get(1);
-
-		await expectAsync(
-			relatedTestRepository.loadRelationship(model, 'wrong_relationship')
-		).toBeRejectedWithError(RelationshipNotFoundError);
-	});
-});
+			const newModel = await repository.loadManyManyRelatedTestsRelationship(model);
+			expect(model.manyManyRelatedTests).toBeUndefined();
+			expect(newModel.manyManyRelatedTests).not.toBeUndefined();
+			expect(newModel.manyManyRelatedTests).toBeInstanceOf(Array);
+			expect((<RelatedTestModel[]>newModel.manyManyRelatedTests).length).toEqual(2);
+			expect((<RelatedTestModel[]>newModel.manyManyRelatedTests)[0]).toBeInstanceOf(RelatedTestModel);
+			expect((<RelatedTestModel[]>newModel.manyManyRelatedTests)[1]).toBeInstanceOf(RelatedTestModel);
+			expect((<RelatedTestModel[]>newModel.manyManyRelatedTests)[0].id).toEqual(1);
+			expect((<RelatedTestModel[]>newModel.manyManyRelatedTests)[1].id).toEqual(2);
+		});
+	};
+};

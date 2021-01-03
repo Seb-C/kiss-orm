@@ -1,51 +1,53 @@
-import { Pool, PoolClient, PoolConfig } from 'pg';
+import { Pool, PoolClient, ClientBase, PoolConfig, Client } from 'pg';
 import { ident as formatIdentifier } from 'pg-format';
 import SqlQuery from '../Queries/SqlQuery';
 import DatabaseInterface from './DatabaseInterface';
+import migrate from './Common/migrate';
 
 const sql = SqlQuery.createFromTemplateString;
 
 export default class PgSqlDatabase implements DatabaseInterface {
-	public readonly pool: Pool;
+	public readonly connection: Pool|ClientBase;
 
-	constructor(pool: PoolConfig|Pool) {
-		if (pool instanceof Pool) {
-			this.pool = pool;
+	constructor(connection: PoolConfig|Pool|ClientBase) {
+		if (connection instanceof Pool || connection instanceof Client) {
+			this.connection = connection;
 		} else {
-			this.pool = new Pool(pool);
+			this.connection = new Pool(<PoolConfig>connection);
 		}
 	}
 
 	async disconnect() {
-		await this.pool.end();
+		if (this.connection instanceof Pool) {
+			await this.connection.end();
+		}
 	}
 
 	indexToPlaceholder (i: number): string {
 		return '$' + (i + 1);
 	}
 
-	private queryPoolOrClient = async (client: Pool|PoolClient, query: SqlQuery): Promise<any[]> => {
+	async query(query: SqlQuery): Promise<any[]> {
 		const compiledQuery = query.compile(this.indexToPlaceholder, formatIdentifier);
-		const result = await client.query(compiledQuery.sql, <any[]><any>compiledQuery.params);
+		const result = await this.connection.query(compiledQuery.sql, <any[]><any>compiledQuery.params);
 
 		return result.rows;
 	}
 
-	async query(query: SqlQuery): Promise<any[]> {
-		return this.queryPoolOrClient(this.pool, query);
-	}
-
 	async sequence<T>(
-		sequence: (
-			query: (query: SqlQuery) => Promise<any[]>,
-		) => Promise<T>,
+		sequence: (sequenceDb: PgSqlDatabase) => Promise<T>,
 	): Promise<T> {
-		const client = await this.pool.connect();
+		if (!(this.connection instanceof Pool)) {
+			// Already in a sequence, so another call changes nothing but works for conveniency
+			return sequence(this);
+		}
+
+		const client = <PoolClient>(await this.connection.connect());
 
 		try {
-			const result = await sequence(async (query: SqlQuery): Promise<any[]> => {
-				return this.queryPoolOrClient(client, query);
-			});
+			const result = await sequence(
+				new PgSqlDatabase(<ClientBase>client)
+			);
 			client.release();
 			return result;
 		} catch (error) {
@@ -55,30 +57,20 @@ export default class PgSqlDatabase implements DatabaseInterface {
 	}
 
 	async migrate(migrations: { [key: string]: SqlQuery }) {
-		await this.query(sql`
-			CREATE TABLE IF NOT EXISTS "Migrations" (
-				"name" TEXT PRIMARY KEY NOT NULL
-			);
+		await migrate(this, migrations);
+	}
+
+	async insertAndGet(standardInsertQuery: SqlQuery): Promise<number[]|string[]|any[]> {
+		return this.query(sql`
+			${standardInsertQuery}
+			RETURNING *;
 		`);
+	}
 
-		const migrationsDone = await this.query(sql`SELECT * FROM "Migrations";`);
-
-		for (const [migrationName, migrationQuery] of Object.entries(migrations)) {
-			if (migrationsDone.some(migrationDone => migrationDone.name === migrationName)) {
-				continue;
-			}
-
-			await this.sequence(async query => {
-				await query(sql`BEGIN;`);
-				try {
-					await query(migrationQuery);
-					await query(sql`INSERT INTO "Migrations" VALUES (${migrationName});`);
-				} catch (error) {
-					await query(sql`ROLLBACK;`);
-					throw error;
-				}
-				await query(sql`COMMIT;`);
-			});
-		}
+	async updateAndGet(standardUpdateQuery: SqlQuery): Promise<null|any[]> {
+		return this.query(sql`
+			${standardUpdateQuery}
+			RETURNING *;
+		`);
 	}
 }

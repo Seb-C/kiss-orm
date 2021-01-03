@@ -1,3 +1,13 @@
+# 2.0.0
+
+- Changing the design of the sequence, so that it gives a proper database rather than a single query method.
+- Changing the design of the relationships. You can find more about it [here](https://github.com/Seb-C/kiss-orm/pull/22/commits/9d076e2f8edfd0737841d9583f8ec94eb6c2e62f#diff-b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5)
+- Added a simple abstraction layer to better support the databases capabilities when getting data after an insert or update
+- Added experimental support for MySQL databases
+- Added experimental support for Sqlite databases
+- Changed the minimal node version to 12 to avoid problems related to the ES6 modules
+- Updated the node dependencies
+
 # 1.1.1
 
 - Fixing some classes requiring the index, creating recursive dependencies

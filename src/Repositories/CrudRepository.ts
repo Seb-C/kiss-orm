@@ -1,14 +1,10 @@
 import NotFoundError from '../Errors/NotFoundError';
 import TooManyResultsError from '../Errors/TooManyResultsError';
-import RelationshipNotFoundError from '../Errors/RelationshipNotFoundError';
 import DatabaseInterface from '../Databases/DatabaseInterface';
 import SqlQuery from '../Queries/SqlQuery';
 import QueryIdentifier from '../Queries/QueryIdentifier';
 
 const sql = SqlQuery.createFromTemplateString;
-
-type Relationship<Model> = ((model: Model) => Promise<any>);
-type Relationships<Model> = { [key: string]: Relationship<Model> };
 
 export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType = any> {
 	protected readonly database: DatabaseInterface;
@@ -16,7 +12,6 @@ export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType
 	protected readonly primaryKey: string;
 	protected readonly model: new (attributes: Required<ValidAttributes>) => Model;
 	protected readonly scope: SqlQuery|null;
-	protected readonly relationships: Relationships<Model>;
 
 	constructor({
 		database,
@@ -24,21 +19,18 @@ export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType
 		model,
 		primaryKey,
 		scope = null,
-		relationships = {},
 	}: {
 		database: DatabaseInterface,
 		table: string,
 		primaryKey: string,
 		model: new (attributes: Required<ValidAttributes>) => Model,
 		scope?: SqlQuery|null,
-		relationships?: Relationships<Model>,
 	}) {
 		this.database = database;
 		this.table = table;
 		this.primaryKey = primaryKey;
 		this.model = model;
 		this.scope = scope;
-		this.relationships = relationships;
 	}
 
 	public async get(primaryKeyValue: PrimaryKeyType): Promise<Model> {
@@ -96,43 +88,71 @@ export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType
 	}
 
 	public async create(attributes: Required<ValidAttributes>): Promise<Model> {
-		const entries = Object.entries(attributes);
-		const fields = entries.map(([key, _]: [string, any]) => sql`${new QueryIdentifier(key)}`);
-		const values = entries.map(([_, val]: [string, any]) => sql`${val}`);
+		return this.database.sequence(async (sequenceDb: DatabaseInterface): Promise<Model> => {
+			const entries = Object.entries(attributes);
+			const fields = entries.map(([key, _]: [string, any]) => sql`${new QueryIdentifier(key)}`);
+			const values = entries.map(([_, val]: [string, any]) => sql`${val}`);
 
-		const results = await this.database.query(sql`
-			INSERT INTO ${new QueryIdentifier(this.table)} (${SqlQuery.join(fields, sql`, `)})
-			VALUES (${SqlQuery.join(values, sql`, `)})
-			RETURNING *;
-		`);
+			const data = (await sequenceDb.insertAndGet(sql`
+				INSERT INTO ${new QueryIdentifier(this.table)} (${SqlQuery.join(fields, sql`, `)})
+				VALUES (${SqlQuery.join(values, sql`, `)})
+			`))[0];
 
-		return this.createModelFromAttributes(results[0]);
+			if (typeof data === 'string' || typeof data === 'number') {
+				const results = await sequenceDb.query(sql`
+					SELECT *
+					FROM ${new QueryIdentifier(this.table)}
+					WHERE ${new QueryIdentifier(this.primaryKey)} = ${data};
+				`);
+
+				if (results.length === 0) {
+					throw new NotFoundError(`Object not found in table ${this.table} after insert (got ${this.primaryKey} = ${data})`);
+				}
+
+				return this.createModelFromAttributes(results[0]);
+			} else {
+				return this.createModelFromAttributes(data);
+			}
+		});
 	}
 
 	public async update(model: Model, attributes: Partial<ValidAttributes>): Promise<Model> {
-		const fieldQueries = Object.entries(attributes).map(
-			([key, value]: [string, any]) => (
-				sql`${new QueryIdentifier(key)} = ${value}`
-			)
-		);
+		return this.database.sequence(async (sequenceDb: DatabaseInterface): Promise<Model> => {
+			const fieldQueries = Object.entries(attributes).map(
+				([key, value]: [string, any]) => (
+					sql`${new QueryIdentifier(key)} = ${value}`
+				)
+			);
 
-		const results = await this.database.query(sql`
-			UPDATE ${new QueryIdentifier(this.table)}
-			SET ${SqlQuery.join(fieldQueries, sql`, `)}
-			WHERE ${new QueryIdentifier(this.primaryKey)} = ${(<any>model)[this.primaryKey]}
-			RETURNING *;
-		`);
+			let results = await sequenceDb.updateAndGet(sql`
+				UPDATE ${new QueryIdentifier(this.table)}
+				SET ${SqlQuery.join(fieldQueries, sql`, `)}
+				WHERE ${new QueryIdentifier(this.primaryKey)} = ${(<any>model)[this.primaryKey]}
+			`);
 
-		if (results.length === 0) {
-			throw new NotFoundError(`Object not found in table ${this.table} for ${this.primaryKey} = ${(<any>model)[this.primaryKey]}`);
-		}
-		if (results.length > 1) {
-			throw new TooManyResultsError(`Multiple objects found in table ${this.table} for ${this.primaryKey} = ${(<any>model)[this.primaryKey]}`);
-		}
+			if (results === null) {
+				results = await sequenceDb.query(sql`
+					SELECT *
+					FROM ${new QueryIdentifier(this.table)}
+					WHERE ${new QueryIdentifier(this.primaryKey)} = ${(<any>model)[this.primaryKey]};
+				`);
 
-		const newModel = await this.createModelFromAttributes(model);
-		Object.assign(newModel, results[0]);
-		return newModel;
+				if (results.length === 0) {
+					throw new NotFoundError(`Object not found in table ${this.table} after update (got ${this.primaryKey} = ${(<any>model)[this.primaryKey]})`);
+				}
+			} else {
+				if (results.length === 0) {
+					throw new NotFoundError(`Object not found in table ${this.table} for ${this.primaryKey} = ${(<any>model)[this.primaryKey]}`);
+				}
+				if (results.length > 1) {
+					throw new TooManyResultsError(`Multiple objects found in table ${this.table} for ${this.primaryKey} = ${(<any>model)[this.primaryKey]}`);
+				}
+			}
+
+			const newModel = await this.createModelFromAttributes(model);
+			Object.assign(newModel, results[0]);
+			return newModel;
+		});
 	}
 
 	public async delete(model: Model) {
@@ -146,21 +166,5 @@ export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType
 		const model = Object.create(this.model.prototype);
 		Object.assign(model, attributes);
 		return model;
-	}
-
-	public async loadRelationship(model: Model, relationshipName: string): Promise<Model> {
-		if (!this.relationships.hasOwnProperty(relationshipName)) {
-			throw new RelationshipNotFoundError(`The relationship named ${relationshipName} does not exist (table ${this.table}).`);
-		}
-
-		const newModel = await this.createModelFromAttributes(model);
-		const relationshipData = await this.relationships[relationshipName](model);
-		Object.defineProperty(
-			newModel,
-			relationshipName,
-			{ value: relationshipData },
-		);
-
-		return newModel;
 	}
 }
