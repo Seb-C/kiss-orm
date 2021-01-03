@@ -2,6 +2,7 @@ import { Pool, PoolClient, ClientBase, PoolConfig, Client } from 'pg';
 import { ident as formatIdentifier } from 'pg-format';
 import SqlQuery from '../Queries/SqlQuery';
 import DatabaseInterface from './DatabaseInterface';
+import migrate from './Common/migrate';
 
 const sql = SqlQuery.createFromTemplateString;
 
@@ -56,31 +57,7 @@ export default class PgSqlDatabase implements DatabaseInterface {
 	}
 
 	async migrate(migrations: { [key: string]: SqlQuery }) {
-		await this.query(sql`
-			CREATE TABLE IF NOT EXISTS "Migrations" (
-				"name" TEXT PRIMARY KEY NOT NULL
-			);
-		`);
-
-		const migrationsDone = await this.query(sql`SELECT * FROM "Migrations";`);
-
-		for (const [migrationName, migrationQuery] of Object.entries(migrations)) {
-			if (migrationsDone.some(migrationDone => migrationDone.name === migrationName)) {
-				continue;
-			}
-
-			await this.sequence(async sequenceDb => {
-				await sequenceDb.query(sql`BEGIN;`);
-				try {
-					await sequenceDb.query(migrationQuery);
-					await sequenceDb.query(sql`INSERT INTO "Migrations" VALUES (${migrationName});`);
-				} catch (error) {
-					await sequenceDb.query(sql`ROLLBACK;`);
-					throw error;
-				}
-				await sequenceDb.query(sql`COMMIT;`);
-			});
-		}
+		await migrate(this, migrations);
 	}
 
 	async insertAndGet(standardInsertQuery: SqlQuery): Promise<number[]|string[]|any[]> {
