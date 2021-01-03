@@ -13,7 +13,8 @@
     "mysql": "^2.18.1",
     "pg": "^8.5.1",
     "pg-format": "^1.0.4",
-    "pg-pool": "^3.2.2"
+    "pg-pool": "^3.2.2",
+    "sqlite3": "^5.0.0"
   },
   "devDependencies": {
     "@types/jasmine": "^3.6.2",
@@ -21,11 +22,15 @@
     "@types/pg": "^7.14.7",
     "@types/pg-format": "^1.0.1",
     "@types/pg-pool": "^2.0.2",
+    "@types/sqlite3": "^3.1.6",
+    "@types/sqlstring": "^2.3.0",
     "jasmine": "^3.6.3",
     "mysql": "^2.18.1",
     "pg": "^8.5.1",
     "pg-format": "^1.0.4",
     "pg-pool": "^3.2.2",
+    "sqlite3": "^5.0.0",
+    "sqlstring": "^2.3.2",
     "ts-node": "^9.1.1",
     "typescript": "^4.1.3"
   },
