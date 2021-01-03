@@ -4,6 +4,7 @@ import TooManyResultsError from '../Errors/TooManyResultsError';
 import DatabaseInterface from '../Databases/DatabaseInterface';
 import PgSqlDatabase from '../Databases/PgSqlDatabase';
 import MySqlDatabase from '../Databases/MySqlDatabase';
+import SqliteDatabase from '../Databases/SqliteDatabase';
 import CrudRepository from './CrudRepository';
 import SqlQuery from '../Queries/SqlQuery';
 import QueryIdentifier from '../Queries/QueryIdentifier';
@@ -118,6 +119,9 @@ describe('CrudRepository - MySqlDatabase', getTestForRepositoryWithDatabase(MySq
 	user: 'test',
 	password: 'test',
 }, sql`PRIMARY KEY AUTO_INCREMENT`));
+describe('CrudRepository - SqliteDatabase', getTestForRepositoryWithDatabase(SqliteDatabase, {
+	filename: ':memory:',
+}, sql`PRIMARY KEY AUTOINCREMENT`));
 
 function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, primaryKeyAttributes: SqlQuery) {
 	return () => {
@@ -184,7 +188,12 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 			expect(result.id).toEqual(2);
 			expect(result.text).toEqual('test 2');
 			expect(result.number).toEqual(12);
-			expect(result.date).toBeInstanceOf(Date);
+			if (DatabaseClass === SqliteDatabase) {
+				// We used the DATE function so SQLite stores a string
+				expect(result.date).toBeInstanceOf(String);
+			} else {
+				expect(result.date).toBeInstanceOf(Date);
+			}
 		});
 		it('get - not found case', async () => {
 			await expectAsync(repository.get(1)).toBeRejectedWithError(NotFoundError);
@@ -229,13 +238,23 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 			expect(results[0].id).toEqual(1);
 			expect(results[0].text).toEqual('test 1');
 			expect(results[0].number).toEqual(11);
-			expect(results[0].date).toBeInstanceOf(Date);
+			if (DatabaseClass === SqliteDatabase) {
+				// We used the DATE function so SQLite stores a string
+				expect(results[0].date).toBeInstanceOf(String);
+			} else {
+				expect(results[0].date).toBeInstanceOf(Date);
+			}
 
 			expect(results[1]).toBeInstanceOf(TestModel);
 			expect(results[1].id).toEqual(2);
 			expect(results[1].text).toEqual('test 2');
 			expect(results[1].number).toEqual(12);
-			expect(results[1].date).toBeInstanceOf(Date);
+			if (DatabaseClass === SqliteDatabase) {
+				// We used the DATE function so SQLite stores a string
+				expect(results[1].date).toBeInstanceOf(String);
+			} else {
+				expect(results[1].date).toBeInstanceOf(Date);
+			}
 		});
 		it('search - no results case', async () => {
 			const results = await repository.search();
@@ -315,45 +334,16 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 			expect(result.id).toEqual(2);
 			expect(result.text).toEqual('test 2');
 			expect(result.number).toEqual(12);
-			expect(result.date).toBeInstanceOf(Date);
-		});
-		it('create - the database does not return new records', async () => {
-			db.insertAndGet = async (q: SqlQuery) => [2];
-			const result = await repository.create({
-				id: 2,
-				text: 'test 2',
-				number: 12,
-				date: new Date(),
-			});
-			expect(result).toBeInstanceOf(TestModel);
-			expect(result.id).toEqual(2);
-			expect(result.text).toEqual('test 2');
-			expect(result.number).toEqual(12);
-			expect(result.date).toBeInstanceOf(Date);
+			if (DatabaseClass === SqliteDatabase) {
+				// We used a Date object so SQLite stores a number this time
+				expect(result.date).toBeInstanceOf(Number);
+			} else {
+				expect(result.date).toBeInstanceOf(Date);
+			}
 		});
 
 		it('update - normal case', async () => {
-			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE '2020-01-01');`);
-			const model = new TestModel();
-			Object.assign(model, {
-				id: 1,
-				text: 'test 1',
-				number: 11,
-				date: new Date(),
-			});
-
-			const result = await repository.update(model, {
-				text: 'test 2',
-			});
-
-			expect(result).toBeInstanceOf(TestModel);
-			expect(result.id).toEqual(1);
-			expect(result.text).toEqual('test 2');
-			expect(result.number).toEqual(11);
-		});
-		it('update - the database does not return updated records', async () => {
-			db.updateAndGet = async (q: SqlQuery) => null;
-			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE '2020-01-01');`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE('2020-01-01'));`);
 			const model = new TestModel();
 			Object.assign(model, {
 				id: 1,
@@ -384,8 +374,8 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 				repository.update(model, { text: 'test 2' })
 			).toBeRejectedWithError(NotFoundError);
 		});
-		if (DatabaseClass !== MySqlDatabase) {
-			// MySQL cannot return the records after an UPDATE, so we cannot provide this exception
+		if (DatabaseClass === PgSqlDatabase) {
+			// Only PgSql has this exception, cannot emulate it with the other engines
 			it('update - too many results case', async () => {
 				await db.query(sql`
 					INSERT INTO ${new QueryIdentifier('TestWithDuplicates')} VALUES
