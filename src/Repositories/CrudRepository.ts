@@ -140,10 +140,6 @@ export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType
 				if (results.length === 0) {
 					throw new NotFoundError(`Object not found in table ${this.table} after update (got ${this.primaryKey} = ${(<any>model)[this.primaryKey]})`);
 				}
-
-				const newModel = await this.createModelFromAttributes(model);
-				Object.assign(newModel, results[0]);
-				return newModel;
 			} else {
 				if (results.length === 0) {
 					throw new NotFoundError(`Object not found in table ${this.table} for ${this.primaryKey} = ${(<any>model)[this.primaryKey]}`);
