@@ -175,8 +175,8 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 		it('get - normal case', async () => {
 			await db.query(sql`
 				INSERT INTO ${new QueryIdentifier('Test')} VALUES
-					(1, 'test 1', 11, DATE '2020-01-01'),
-					(2, 'test 2', 12, DATE '2020-01-03');
+					(1, 'test 1', 11, DATE('2020-01-01')),
+					(2, 'test 2', 12, DATE('2020-01-03'));
 			`);
 
 			const result = await repository.get(2);
@@ -192,8 +192,8 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 		it('get - too many results case', async () => {
 			await db.query(sql`
 				INSERT INTO ${new QueryIdentifier('TestWithDuplicates')} VALUES
-					(1, 'test 1', 11, DATE '2020-01-01'),
-					(1, 'test 2', 12, DATE '2020-01-01');
+					(1, 'test 1', 11, DATE('2020-01-01')),
+					(1, 'test 2', 12, DATE('2020-01-01'));
 			`);
 
 			await expectAsync(repositoryWithDuplicates.get(1)).toBeRejectedWithError(TooManyResultsError);
@@ -202,15 +202,15 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 		it('get - scoped case', async () => {
 			await db.query(sql`
 				INSERT INTO ${new QueryIdentifier('TestWithDuplicates')} VALUES
-					(1, 'test 1', 42, DATE '2020-01-01'),
-					(1, 'test 2', 43, DATE '2020-01-01');
+					(1, 'test 1', 42, DATE('2020-01-01')),
+					(1, 'test 2', 43, DATE('2020-01-01'));
 			`);
 
 			const result = await scopedRepository.get(1);
 			expect(result.text).toEqual('test 1');
 		});
 		it('get - not found in scope case', async () => {
-			await db.query(sql`INSERT INTO ${new QueryIdentifier('TestWithDuplicates')} VALUES (1, 'test 2', 12, DATE '2020-01-01');`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('TestWithDuplicates')} VALUES (1, 'test 2', 12, DATE('2020-01-01'));`);
 
 			await expectAsync(scopedRepository.get(1)).toBeRejectedWithError(NotFoundError);
 		});
@@ -218,8 +218,8 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 		it('search - normal case without filters', async () => {
 			await db.query(sql`
 				INSERT INTO ${new QueryIdentifier('Test')} VALUES
-					(1, 'test 1', 11, DATE '2020-01-01'),
-					(2, 'test 2', 12, DATE '2020-01-03');
+					(1, 'test 1', 11, DATE('2020-01-01')),
+					(2, 'test 2', 12, DATE('2020-01-03'));
 			`);
 
 			const results = await repository.search();
@@ -244,9 +244,9 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 		it('search - with a filter', async () => {
 			await db.query(sql`
 				INSERT INTO ${new QueryIdentifier('Test')} VALUES
-					(1, 'test 1', 11, DATE '2020-01-01'),
-					(2, 'test 2', 12, DATE '2020-01-03'),
-					(3, 'test 3', 13, DATE '2020-01-02');
+					(1, 'test 1', 11, DATE('2020-01-01')),
+					(2, 'test 2', 12, DATE('2020-01-03')),
+					(3, 'test 3', 13, DATE('2020-01-02'));
 			`);
 
 			const results = await repository.search(sql`number > 11 AND text LIKE '%2'`);
@@ -256,8 +256,8 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 		it('search - with an order', async () => {
 			await db.query(sql`
 				INSERT INTO ${new QueryIdentifier('Test')} VALUES
-					(1, 'test 1', 11, DATE '2020-01-01'),
-					(2, 'test 2', 12, DATE '2020-01-03');
+					(1, 'test 1', 11, ('2020-01-01')),
+					(2, 'test 2', 12, ('2020-01-03'));
 			`);
 
 			const results = await repository.search(null, sql`number DESC`);
@@ -268,9 +268,9 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 		it('search - with a filter and order', async () => {
 			await db.query(sql`
 				INSERT INTO ${new QueryIdentifier('Test')} VALUES
-					(1, 'test 1', 11, DATE '2020-01-01'),
-					(2, 'test 2', 12, DATE '2020-01-03'),
-					(3, 'test 3', 13, DATE '2020-01-02');
+					(1, 'test 1', 11, DATE('2020-01-01')),
+					(2, 'test 2', 12, DATE('2020-01-03')),
+					(3, 'test 3', 13, DATE('2020-01-02'));
 			`);
 
 			const results = await repository.search(sql`number > 11`, sql`number DESC`);
@@ -281,9 +281,9 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 		it('search - scoped', async () => {
 			await db.query(sql`
 				INSERT INTO ${new QueryIdentifier('TestWithDuplicates')} VALUES
-					(1, 'test 1', 42, DATE '2020-01-01'),
-					(2, 'test 2', 42, DATE '2020-01-01'),
-					(3, 'test 3', 13, DATE '2020-01-01');
+					(1, 'test 1', 42, DATE('2020-01-01')),
+					(2, 'test 2', 42, DATE('2020-01-01')),
+					(3, 'test 3', 13, DATE('2020-01-01'));
 			`);
 
 			const results = await scopedRepository.search();
@@ -294,9 +294,9 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 		it('search - scoped and filtered', async () => {
 			await db.query(sql`
 				INSERT INTO ${new QueryIdentifier('TestWithDuplicates')} VALUES
-					(1, 'test 1', 42, DATE '2020-01-01'),
-					(2, 'test 2', 42, DATE '2020-01-01'),
-					(3, 'test 3', 13, DATE '2020-01-01');
+					(1, 'test 1', 42, DATE('2020-01-01')),
+					(2, 'test 2', 42, DATE('2020-01-01')),
+					(3, 'test 3', 13, DATE('2020-01-01'));
 			`);
 
 			const results = await scopedRepository.search(sql`text = 'test 2'`);
@@ -389,8 +389,8 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 			it('update - too many results case', async () => {
 				await db.query(sql`
 					INSERT INTO ${new QueryIdentifier('TestWithDuplicates')} VALUES
-						(1, 'test 1', 11, DATE '2020-01-01'),
-						(1, 'test 1', 11, DATE '2020-01-01');
+						(1, 'test 1', 11, DATE('2020-01-01')),
+						(1, 'test 1', 11, DATE('2020-01-01'));
 				`);
 
 				const model = new TestModel();
@@ -407,7 +407,7 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 			});
 		}
 		it('update - should not affect unrelated properties', async () => {
-			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE '2020-01-01');`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE('2020-01-01'));`);
 			const model = await repository.get(1);
 			model.propertyUnrelatedToTheTable = true;
 
@@ -419,7 +419,7 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 		});
 
 		it('delete - normal case', async () => {
-			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE '2020-01-01');`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE('2020-01-01'));`);
 			const model = new TestModel();
 			Object.assign(model, {
 				id: 1,
@@ -432,7 +432,7 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 		});
 
 		it('load relationship - has one', async () => {
-			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE '2020-01-01');`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE('2020-01-01'));`);
 			await db.query(sql`INSERT INTO ${new QueryIdentifier('RelatedTest')} VALUES (1, 1);`);
 
 			const relatedModel = await relatedTestRepository.get(1);
@@ -447,8 +447,8 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 		});
 
 		it('load relationship - has many', async () => {
-			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE '2020-01-01');`);
-			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (2, 'test 2', 12, DATE '2020-01-02');`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE('2020-01-01'));`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (2, 'test 2', 12, DATE('2020-01-02'));`);
 			await db.query(sql`INSERT INTO ${new QueryIdentifier('RelatedTest')} VALUES (1, 1);`);
 			await db.query(sql`INSERT INTO ${new QueryIdentifier('RelatedTest')} VALUES (2, 1);`);
 			await db.query(sql`INSERT INTO ${new QueryIdentifier('RelatedTest')} VALUES (3, 2);`);
@@ -468,8 +468,8 @@ function getTestForRepositoryWithDatabase(DatabaseClass: any, config: any, prima
 		});
 
 		it('load relationship - many many', async () => {
-			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE '2020-01-01');`);
-			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (2, 'test 2', 12, DATE '2020-01-02');`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (1, 'test 1', 11, DATE('2020-01-01'));`);
+			await db.query(sql`INSERT INTO ${new QueryIdentifier('Test')} VALUES (2, 'test 2', 12, DATE('2020-01-02'));`);
 
 			await db.query(sql`INSERT INTO ${new QueryIdentifier('RelatedTest')} VALUES (1, 1);`);
 			await db.query(sql`INSERT INTO ${new QueryIdentifier('RelatedTest')} VALUES (2, 1);`);
