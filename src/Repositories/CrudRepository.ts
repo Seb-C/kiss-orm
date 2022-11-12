@@ -150,7 +150,7 @@ export default class CrudRepository<Model, ValidAttributes = any, PrimaryKeyType
 			}
 
 			const newModel = await this.createModelFromAttributes(model);
-			Object.assign(newModel, results[0]);
+			Object.assign(<object>newModel, results[0]);
 			return newModel;
 		});
 	}
