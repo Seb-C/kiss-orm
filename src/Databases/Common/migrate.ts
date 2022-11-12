@@ -10,7 +10,7 @@ export default async (
 ) => {
 	await database.query(sql`
 		CREATE TABLE IF NOT EXISTS ${new QueryIdentifier('Migrations')}(
-			${new QueryIdentifier('name')} VARCHAR(3072) PRIMARY KEY NOT NULL
+			${new QueryIdentifier('name')} VARCHAR(768) PRIMARY KEY NOT NULL
 		);
 	`);
 
